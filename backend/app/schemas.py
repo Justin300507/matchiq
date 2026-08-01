@@ -54,6 +54,22 @@ class SimulationOut(BaseModel):
     n_simulations: int
 
 
+class RecentResultOut(BaseModel):
+    date: str
+    opponent_name: str
+    is_home: bool
+    team_score: int
+    opponent_score: int
+    result: str
+
+
+class MatchContextOut(BaseModel):
+    game_id: int
+    home_recent_form: list[RecentResultOut]
+    away_recent_form: list[RecentResultOut]
+    head_to_head: list[RecentResultOut]
+
+
 class TeamProfileOut(BaseModel):
     team_id: int
     team_name: str

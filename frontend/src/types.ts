@@ -46,6 +46,22 @@ export interface SimulationOut {
   n_simulations: number;
 }
 
+export interface RecentResultOut {
+  date: string;
+  opponent_name: string;
+  is_home: boolean;
+  team_score: number;
+  opponent_score: number;
+  result: "W" | "D" | "L";
+}
+
+export interface MatchContextOut {
+  game_id: number;
+  home_recent_form: RecentResultOut[];
+  away_recent_form: RecentResultOut[];
+  head_to_head: RecentResultOut[];
+}
+
 export interface TeamProfileOut {
   team_id: number;
   team_name: string;

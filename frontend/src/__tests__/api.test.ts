@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchExplanation, fetchSimulation, fetchTeamProfile, fetchUpcomingPredictions } from "../api";
-import type { ExplanationOut, PredictionOut, SimulationOut, TeamProfileOut } from "../types";
+import {
+  fetchExplanation,
+  fetchMatchContext,
+  fetchPrediction,
+  fetchSimulation,
+  fetchTeamProfile,
+  fetchUpcomingPredictions,
+} from "../api";
+import type { ExplanationOut, MatchContextOut, PredictionOut, SimulationOut, TeamProfileOut } from "../types";
 
 describe("fetchUpcomingPredictions", () => {
   afterEach(() => {
@@ -39,6 +46,63 @@ describe("fetchUpcomingPredictions", () => {
     expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining("league=Bundesliga"),
     );
+  });
+});
+
+describe("fetchPrediction", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const basePrediction: PredictionOut = {
+    game_id: 42, sport: "nba", league: "NBA", date: "2026-02-01T19:00:00Z",
+    home_team: { id: 1, name: "Lakers", league: "NBA" },
+    away_team: { id: 2, name: "Celtics", league: "NBA" },
+    home_win_prob: 0.6, draw_prob: null, away_win_prob: 0.4,
+    predicted_home_score: 105, predicted_away_score: 99, model_confidence: "Medium",
+  };
+
+  it("calls the predictions/{id} endpoint", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => basePrediction,
+    }) as unknown as typeof fetch;
+
+    const result = await fetchPrediction(42);
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining("/predictions/42"));
+    expect(result).toEqual(basePrediction);
+  });
+
+  it("throws when the response is not ok", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 }) as unknown as typeof fetch;
+
+    await expect(fetchPrediction(42)).rejects.toThrow();
+  });
+});
+
+describe("fetchMatchContext", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("calls the predictions/{id}/context endpoint", async () => {
+    const mockData: MatchContextOut = { game_id: 42, home_recent_form: [], away_recent_form: [], head_to_head: [] };
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockData,
+    }) as unknown as typeof fetch;
+
+    const result = await fetchMatchContext(42);
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining("/predictions/42/context"));
+    expect(result).toEqual(mockData);
+  });
+
+  it("throws when the response is not ok", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 }) as unknown as typeof fetch;
+
+    await expect(fetchMatchContext(42)).rejects.toThrow();
   });
 });
 

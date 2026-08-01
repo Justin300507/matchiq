@@ -6,13 +6,16 @@ from sqlalchemy.orm import Session
 from app.features.build_features import compute_features
 from app.main import get_artifact_dir, get_db
 from app.ml.explain import explain_prediction
+from app.ml.match_context import compute_match_context
 from app.ml.predict import load_latest_artifact, predict_match
 from app.ml.simulate import simulate_match
 from app.models_db import Match
 from app.schemas import (
     ExplanationFactorOut,
     ExplanationOut,
+    MatchContextOut,
     PredictionOut,
+    RecentResultOut,
     ScorelineOut,
     SimulationOut,
 )
@@ -143,4 +146,26 @@ def get_simulation(
             for s in result.top_scorelines
         ],
         n_simulations=result.n_simulations,
+    )
+
+
+def _to_recent_result_out(r) -> RecentResultOut:
+    return RecentResultOut(
+        date=r.date, opponent_name=r.opponent_name, is_home=r.is_home,
+        team_score=r.team_score, opponent_score=r.opponent_score, result=r.result,
+    )
+
+
+@router.get("/{game_id}/context", response_model=MatchContextOut)
+def get_match_context(game_id: int, db: Session = Depends(get_db)):
+    match = db.query(Match).filter(Match.id == game_id).one_or_none()
+    if match is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    context = compute_match_context(db, match)
+    return MatchContextOut(
+        game_id=match.id,
+        home_recent_form=[_to_recent_result_out(r) for r in context.home_recent_form],
+        away_recent_form=[_to_recent_result_out(r) for r in context.away_recent_form],
+        head_to_head=[_to_recent_result_out(r) for r in context.head_to_head],
     )

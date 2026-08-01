@@ -1,5 +1,6 @@
 import { Link, Route, Routes } from "react-router-dom";
 import { HomePage } from "./pages/HomePage";
+import { MatchPage } from "./pages/MatchPage";
 import { TeamPage } from "./pages/TeamPage";
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/team/:teamId" element={<TeamPage />} />
+          <Route path="/match/:gameId" element={<MatchPage />} />
         </Routes>
       </div>
     </div>

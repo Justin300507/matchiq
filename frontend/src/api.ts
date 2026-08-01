@@ -1,4 +1,4 @@
-import type { ExplanationOut, PredictionOut, SimulationOut, TeamProfileOut } from "./types";
+import type { ExplanationOut, MatchContextOut, PredictionOut, SimulationOut, TeamProfileOut } from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -10,6 +10,22 @@ export async function fetchUpcomingPredictions(sport: "nba" | "soccer", league?:
   const response = await fetch(`${API_BASE_URL}/predictions/upcoming?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch predictions: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchPrediction(gameId: number): Promise<PredictionOut> {
+  const response = await fetch(`${API_BASE_URL}/predictions/${gameId}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch prediction: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchMatchContext(gameId: number): Promise<MatchContextOut> {
+  const response = await fetch(`${API_BASE_URL}/predictions/${gameId}/context`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch match context: ${response.status}`);
   }
   return response.json();
 }

@@ -164,6 +164,32 @@ def test_get_simulation_clamps_n_query_param(mock_simulate, mock_load, client_wi
     assert mock_simulate.call_args.kwargs["n_simulations"] == 50000
 
 
+def test_get_match_context_returns_empty_lists_with_no_history(client_with_db):
+    client, match = client_with_db
+    response = client.get(f"/predictions/{match.id}/context")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["game_id"] == match.id
+    assert body["home_recent_form"] == []
+    assert body["away_recent_form"] == []
+    assert body["head_to_head"] == []
+
+
+def test_get_match_context_404_for_unknown_id(client_with_db):
+    client, _ = client_with_db
+    response = client.get("/predictions/999999/context")
+    assert response.status_code == 404
+
+
+def test_get_match_context_does_not_require_a_trained_model(client_with_db):
+    # No dependency override / mock for load_latest_artifact here — this
+    # endpoint must not need one at all, unlike /explain and /simulate.
+    client, match = client_with_db
+    response = client.get(f"/predictions/{match.id}/context")
+    assert response.status_code == 200
+
+
 @patch("app.routers.predictions.load_latest_artifact")
 @patch("app.routers.predictions.predict_match")
 def test_upcoming_mixes_leagues_instead_of_one_league_crowding_out_others(mock_predict, mock_load, tmp_path):
