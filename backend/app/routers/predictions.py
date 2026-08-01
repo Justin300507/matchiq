@@ -34,35 +34,47 @@ def _to_prediction_out(match: Match, artifact: dict, db: Session) -> PredictionO
 
 
 @router.get("/upcoming", response_model=list[PredictionOut])
-def get_upcoming(sport: str, db: Session = Depends(get_db), artifact_dir=Depends(get_artifact_dir)):
+def get_upcoming(
+    sport: str,
+    league: str | None = None,
+    db: Session = Depends(get_db),
+    artifact_dir=Depends(get_artifact_dir),
+):
     artifact = load_latest_artifact(sport, artifact_dir)
     if artifact is None:
         raise HTTPException(status_code=503, detail=f"No trained model available for sport={sport}")
 
-    matches = (
-        db.query(Match)
-        .filter(Match.sport == sport, Match.status == "scheduled", Match.date >= datetime.now(timezone.utc).replace(tzinfo=None))
-        .order_by(Match.date.asc())
-        .limit(2000)
-        .all()
+    query = db.query(Match).filter(
+        Match.sport == sport,
+        Match.status == "scheduled",
+        Match.date >= datetime.now(timezone.utc).replace(tzinfo=None),
     )
+    if league is not None:
+        query = query.filter(Match.league == league)
 
-    # Leagues start their seasons on different dates, so a flat date-ordered
-    # limit would let whichever league happens to kick off earliest crowd out
-    # every other league. Cap how many matches each league contributes before
-    # re-sorting, so the dashboard shows a mix rather than one league only.
-    per_league_counts: dict[str, int] = {}
-    selected: list[Match] = []
-    for match in matches:
-        count = per_league_counts.get(match.league, 0)
-        if count >= PER_LEAGUE_LIMIT:
-            continue
-        per_league_counts[match.league] = count + 1
-        selected.append(match)
-        if len(selected) >= OVERALL_LIMIT:
-            break
+    matches = query.order_by(Match.date.asc()).limit(2000).all()
 
-    selected.sort(key=lambda match: match.date)
+    if league is not None:
+        # A specific league was requested, so there's nothing to balance
+        # against — just take the soonest matches for that league.
+        selected = matches[:OVERALL_LIMIT]
+    else:
+        # Leagues start their seasons on different dates, so a flat date-ordered
+        # limit would let whichever league happens to kick off earliest crowd out
+        # every other league. Cap how many matches each league contributes before
+        # re-sorting, so the dashboard shows a mix rather than one league only.
+        per_league_counts: dict[str, int] = {}
+        selected = []
+        for match in matches:
+            count = per_league_counts.get(match.league, 0)
+            if count >= PER_LEAGUE_LIMIT:
+                continue
+            per_league_counts[match.league] = count + 1
+            selected.append(match)
+            if len(selected) >= OVERALL_LIMIT:
+                break
+
+    selected = sorted(selected, key=lambda match: match.date)
     return [_to_prediction_out(match, artifact, db) for match in selected]
 
 

@@ -127,3 +127,47 @@ def test_upcoming_mixes_leagues_instead_of_one_league_crowding_out_others(mock_p
     leagues_in_response = {item["league"] for item in response.json()}
     assert "Bundesliga" in leagues_in_response
     assert "La Liga" in leagues_in_response
+
+
+@patch("app.routers.predictions.load_latest_artifact")
+@patch("app.routers.predictions.predict_match")
+def test_upcoming_filters_to_one_league_when_requested(mock_predict, mock_load, tmp_path):
+    engine = get_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    db = get_session_factory(engine)()
+
+    la_liga_home = Team(external_id="1", sport="soccer", league="La Liga", name="Alaves")
+    la_liga_away = Team(external_id="2", sport="soccer", league="La Liga", name="Getafe")
+    bundesliga_home = Team(external_id="3", sport="soccer", league="Bundesliga", name="Bayern")
+    bundesliga_away = Team(external_id="4", sport="soccer", league="Bundesliga", name="Dortmund")
+    db.add_all([la_liga_home, la_liga_away, bundesliga_home, bundesliga_away])
+    db.commit()
+
+    db.add(Match(
+        external_id="la-liga-1", sport="soccer", league="La Liga",
+        date=datetime.utcnow() + timedelta(days=1),
+        home_team_id=la_liga_home.id, away_team_id=la_liga_away.id,
+        home_score=None, away_score=None, status="scheduled",
+    ))
+    db.add(Match(
+        external_id="bundesliga-1", sport="soccer", league="Bundesliga",
+        date=datetime.utcnow() + timedelta(days=1),
+        home_team_id=bundesliga_home.id, away_team_id=bundesliga_away.id,
+        home_score=None, away_score=None, status="scheduled",
+    ))
+    db.commit()
+
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_artifact_dir] = lambda: tmp_path
+    mock_load.return_value = {"labels": ["H", "D", "A"]}
+    mock_predict.return_value = Prediction(0.5, 0.25, 0.25, 1.5, 1.0)
+
+    client = TestClient(app)
+    response = client.get("/predictions/upcoming?sport=soccer&league=Bundesliga")
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["league"] == "Bundesliga"

@@ -26,4 +26,18 @@ describe("fetchUpcomingPredictions", () => {
 
     await expect(fetchUpcomingPredictions("soccer")).rejects.toThrow();
   });
+
+  it("includes the league query param when given", async () => {
+    const mockData: PredictionOut[] = [];
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockData,
+    }) as unknown as typeof fetch;
+
+    await fetchUpcomingPredictions("soccer", "Bundesliga");
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("league=Bundesliga"),
+    );
+  });
 });

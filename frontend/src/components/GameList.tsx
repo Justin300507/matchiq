@@ -3,17 +3,17 @@ import { fetchUpcomingPredictions } from "../api";
 import type { PredictionOut } from "../types";
 import { GameCard } from "./GameCard";
 
-export function GameList({ sport }: { sport: "nba" | "soccer" }) {
+export function GameList({ sport, league }: { sport: "nba" | "soccer"; league?: string }) {
   const [predictions, setPredictions] = useState<PredictionOut[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setPredictions(null);
     setError(null);
-    fetchUpcomingPredictions(sport)
+    fetchUpcomingPredictions(sport, league)
       .then(setPredictions)
       .catch(() => setError("Couldn't load predictions. Please try again later."));
-  }, [sport]);
+  }, [sport, league]);
 
   if (error) {
     return <p className="text-red-600">{error}</p>;
