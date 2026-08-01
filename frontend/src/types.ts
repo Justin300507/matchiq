@@ -78,6 +78,14 @@ export interface WhatIfOut {
   counterfactual: PredictionSummaryOut;
 }
 
+export interface ReliabilityBinOut {
+  bin_start: number;
+  bin_end: number;
+  avg_confidence: number;
+  observed_accuracy: number;
+  count: number;
+}
+
 export interface BacktestOut {
   sport: string;
   predictions_evaluated: number;
@@ -87,6 +95,10 @@ export interface BacktestOut {
   baseline_accuracy: number;
   baseline_log_loss: number;
   baseline_brier_score: number;
+  labels: string[];
+  confusion_matrix: number[][];
+  roc_auc: number | null;
+  reliability_bins: ReliabilityBinOut[];
 }
 
 export interface TeamProfileOut {

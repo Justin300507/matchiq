@@ -86,6 +86,14 @@ class WhatIfOut(BaseModel):
     counterfactual: PredictionSummaryOut
 
 
+class ReliabilityBinOut(BaseModel):
+    bin_start: float
+    bin_end: float
+    avg_confidence: float
+    observed_accuracy: float
+    count: int
+
+
 class BacktestOut(BaseModel):
     sport: str
     predictions_evaluated: int
@@ -95,6 +103,10 @@ class BacktestOut(BaseModel):
     baseline_accuracy: float
     baseline_log_loss: float
     baseline_brier_score: float
+    labels: list[str]
+    confusion_matrix: list[list[int]]
+    roc_auc: float | None
+    reliability_bins: list[ReliabilityBinOut]
 
 
 class TeamProfileOut(BaseModel):

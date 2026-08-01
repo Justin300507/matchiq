@@ -68,6 +68,13 @@ def test_run_backtest_evaluates_the_held_out_split():
     assert 0.0 <= result.baseline_accuracy <= 1.0
     assert result.model_brier_score >= 0.0
 
+    assert result.labels == ["H", "A"]
+    assert len(result.confusion_matrix) == 2
+    assert sum(sum(row) for row in result.confusion_matrix) == result.predictions_evaluated
+    assert result.roc_auc is None or 0.0 <= result.roc_auc <= 1.0
+    assert len(result.reliability_bins) > 0
+    assert sum(b.count for b in result.reliability_bins) == result.predictions_evaluated
+
 
 def test_run_backtest_returns_zeroed_result_with_no_data(tmp_path: Path):
     engine = get_engine("sqlite:///:memory:")
@@ -79,3 +86,7 @@ def test_run_backtest_returns_zeroed_result_with_no_data(tmp_path: Path):
 
     assert result.predictions_evaluated == 0
     assert result.model_accuracy == 0.0
+    assert result.labels == ["H", "A"]
+    assert result.confusion_matrix == []
+    assert result.roc_auc is None
+    assert result.reliability_bins == []

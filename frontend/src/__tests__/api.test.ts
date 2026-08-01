@@ -216,6 +216,7 @@ describe("fetchAccuracy", () => {
     const mockData: BacktestOut = {
       sport: "nba", predictions_evaluated: 120, model_accuracy: 0.58, model_log_loss: 0.65,
       model_brier_score: 0.23, baseline_accuracy: 0.53, baseline_log_loss: 15.2, baseline_brier_score: 0.47,
+      labels: ["H", "A"], confusion_matrix: [[50, 10], [15, 45]], roc_auc: 0.72, reliability_bins: [],
     };
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
