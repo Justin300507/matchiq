@@ -4,6 +4,7 @@ import { fetchExplanation, fetchMatchContext, fetchPrediction } from "../api";
 import { ConfidenceBadge } from "../components/ConfidenceBadge";
 import { RecentFormList } from "../components/RecentFormList";
 import { SimulationPanel } from "../components/SimulationPanel";
+import { WhatIfPanel } from "../components/WhatIfPanel";
 import type { ExplanationOut, MatchContextOut, PredictionOut } from "../types";
 
 function pct(value: number): string {
@@ -96,6 +97,11 @@ export function MatchPage() {
       <div className="mt-6 rounded border border-gray-100 bg-gray-50 p-4">
         <p className="mb-2 text-xs font-semibold text-gray-700">Monte Carlo simulation</p>
         <SimulationPanel gameId={id} />
+      </div>
+
+      <div className="mt-6 rounded border border-gray-100 bg-gray-50 p-4">
+        <p className="mb-2 text-xs font-semibold text-gray-700">What-if</p>
+        <WhatIfPanel gameId={id} />
       </div>
 
       {context && (

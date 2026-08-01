@@ -70,6 +70,22 @@ class MatchContextOut(BaseModel):
     head_to_head: list[RecentResultOut]
 
 
+class PredictionSummaryOut(BaseModel):
+    home_win_prob: float
+    draw_prob: float | None
+    away_win_prob: float
+    predicted_home_score: float
+    predicted_away_score: float
+    model_confidence: str
+
+
+class WhatIfOut(BaseModel):
+    game_id: int
+    overrides_applied: dict[str, float]
+    original: PredictionSummaryOut
+    counterfactual: PredictionSummaryOut
+
+
 class BacktestOut(BaseModel):
     sport: str
     predictions_evaluated: int

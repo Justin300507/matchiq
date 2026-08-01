@@ -1,13 +1,14 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
 from app.features.build_features import compute_features
 from app.main import get_artifact_dir, get_db
+from app.ml.counterfactual import simulate_counterfactual
 from app.ml.explain import explain_prediction
 from app.ml.match_context import compute_match_context
-from app.ml.predict import load_latest_artifact, predict_match
+from app.ml.predict import Prediction, load_latest_artifact, predict_match
 from app.ml.simulate import simulate_match
 from app.models_db import Match
 from app.schemas import (
@@ -15,9 +16,11 @@ from app.schemas import (
     ExplanationOut,
     MatchContextOut,
     PredictionOut,
+    PredictionSummaryOut,
     RecentResultOut,
     ScorelineOut,
     SimulationOut,
+    WhatIfOut,
 )
 
 router = APIRouter(prefix="/predictions", tags=["predictions"])
@@ -153,6 +156,47 @@ def _to_recent_result_out(r) -> RecentResultOut:
     return RecentResultOut(
         date=r.date, opponent_name=r.opponent_name, is_home=r.is_home,
         team_score=r.team_score, opponent_score=r.opponent_score, result=r.result,
+    )
+
+
+def _to_prediction_summary(prediction: Prediction) -> PredictionSummaryOut:
+    return PredictionSummaryOut(
+        home_win_prob=prediction.home_win_prob,
+        draw_prob=prediction.draw_prob,
+        away_win_prob=prediction.away_win_prob,
+        predicted_home_score=prediction.predicted_home_score,
+        predicted_away_score=prediction.predicted_away_score,
+        model_confidence=prediction.confidence,
+    )
+
+
+@router.get("/{game_id}/whatif", response_model=WhatIfOut)
+def get_whatif(
+    game_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    artifact_dir=Depends(get_artifact_dir),
+):
+    match, artifact = _get_match_and_artifact(game_id, db, artifact_dir)
+
+    overrides: dict[str, float] = {}
+    for key, value in request.query_params.items():
+        try:
+            overrides[key] = float(value)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid value for {key}: {value!r}")
+
+    features = compute_features(db, match)
+    try:
+        original, counterfactual = simulate_counterfactual(artifact, features, overrides)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return WhatIfOut(
+        game_id=match.id,
+        overrides_applied=overrides,
+        original=_to_prediction_summary(original),
+        counterfactual=_to_prediction_summary(counterfactual),
     )
 
 

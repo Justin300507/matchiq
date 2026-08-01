@@ -1,4 +1,12 @@
-import type { BacktestOut, ExplanationOut, MatchContextOut, PredictionOut, SimulationOut, TeamProfileOut } from "./types";
+import type {
+  BacktestOut,
+  ExplanationOut,
+  MatchContextOut,
+  PredictionOut,
+  SimulationOut,
+  TeamProfileOut,
+  WhatIfOut,
+} from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -42,6 +50,18 @@ export async function fetchSimulation(gameId: number): Promise<SimulationOut> {
   const response = await fetch(`${API_BASE_URL}/predictions/${gameId}/simulate`);
   if (!response.ok) {
     throw new Error(`Failed to fetch simulation: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchWhatIf(gameId: number, overrides: Record<string, number>): Promise<WhatIfOut> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(overrides)) {
+    params.set(key, String(value));
+  }
+  const response = await fetch(`${API_BASE_URL}/predictions/${gameId}/whatif?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch what-if simulation: ${response.status}`);
   }
   return response.json();
 }

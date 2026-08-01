@@ -191,6 +191,45 @@ def test_get_match_context_does_not_require_a_trained_model(client_with_db):
 
 
 @patch("app.routers.predictions.load_latest_artifact")
+@patch("app.routers.predictions.simulate_counterfactual")
+def test_get_whatif_returns_original_and_counterfactual(mock_counterfactual, mock_load, client_with_db):
+    client, match = client_with_db
+    mock_load.return_value = {"labels": ["H", "A"]}
+    mock_counterfactual.return_value = (
+        Prediction(0.6, None, 0.4, 100.0, 95.0, "Medium"),
+        Prediction(0.9, None, 0.1, 108.0, 90.0, "High"),
+    )
+
+    response = client.get(f"/predictions/{match.id}/whatif?home_form_last5=0.95")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["overrides_applied"] == {"home_form_last5": 0.95}
+    assert body["original"]["home_win_prob"] == 0.6
+    assert body["counterfactual"]["home_win_prob"] == 0.9
+
+
+def test_get_whatif_400_for_unknown_feature(client_with_db):
+    client, match = client_with_db
+    with patch("app.routers.predictions.load_latest_artifact", return_value={"labels": ["H", "A"]}):
+        response = client.get(f"/predictions/{match.id}/whatif?opponent_missing_striker=1")
+    assert response.status_code == 400
+
+
+def test_get_whatif_400_for_non_numeric_value(client_with_db):
+    client, match = client_with_db
+    with patch("app.routers.predictions.load_latest_artifact", return_value={"labels": ["H", "A"]}):
+        response = client.get(f"/predictions/{match.id}/whatif?home_form_last5=not-a-number")
+    assert response.status_code == 400
+
+
+def test_get_whatif_404_for_unknown_id(client_with_db):
+    client, _ = client_with_db
+    response = client.get("/predictions/999999/whatif")
+    assert response.status_code == 404
+
+
+@patch("app.routers.predictions.load_latest_artifact")
 @patch("app.routers.predictions.predict_match")
 def test_upcoming_mixes_leagues_instead_of_one_league_crowding_out_others(mock_predict, mock_load, tmp_path):
     engine = get_engine("sqlite:///:memory:")

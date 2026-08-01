@@ -62,6 +62,22 @@ export interface MatchContextOut {
   head_to_head: RecentResultOut[];
 }
 
+export interface PredictionSummaryOut {
+  home_win_prob: number;
+  draw_prob: number | null;
+  away_win_prob: number;
+  predicted_home_score: number;
+  predicted_away_score: number;
+  model_confidence: "High" | "Medium" | "Low";
+}
+
+export interface WhatIfOut {
+  game_id: number;
+  overrides_applied: Record<string, number>;
+  original: PredictionSummaryOut;
+  counterfactual: PredictionSummaryOut;
+}
+
 export interface BacktestOut {
   sport: string;
   predictions_evaluated: number;

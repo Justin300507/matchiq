@@ -7,6 +7,7 @@ import {
   fetchSimulation,
   fetchTeamProfile,
   fetchUpcomingPredictions,
+  fetchWhatIf,
 } from "../api";
 import type {
   BacktestOut,
@@ -15,6 +16,7 @@ import type {
   PredictionOut,
   SimulationOut,
   TeamProfileOut,
+  WhatIfOut,
 } from "../types";
 
 describe("fetchUpcomingPredictions", () => {
@@ -227,5 +229,37 @@ describe("fetchAccuracy", () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 503 }) as unknown as typeof fetch;
 
     await expect(fetchAccuracy("nba")).rejects.toThrow();
+  });
+});
+
+describe("fetchWhatIf", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("builds a query string from the overrides and calls the whatif endpoint", async () => {
+    const mockData: WhatIfOut = {
+      game_id: 42,
+      overrides_applied: { home_form_last5: 0.95 },
+      original: { home_win_prob: 0.6, draw_prob: null, away_win_prob: 0.4, predicted_home_score: 100, predicted_away_score: 95, model_confidence: "Medium" },
+      counterfactual: { home_win_prob: 0.9, draw_prob: null, away_win_prob: 0.1, predicted_home_score: 108, predicted_away_score: 90, model_confidence: "High" },
+    };
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockData,
+    }) as unknown as typeof fetch;
+
+    const result = await fetchWhatIf(42, { home_form_last5: 0.95 });
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/predictions/42/whatif?home_form_last5=0.95"),
+    );
+    expect(result).toEqual(mockData);
+  });
+
+  it("throws when the response is not ok", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 400 }) as unknown as typeof fetch;
+
+    await expect(fetchWhatIf(42, { home_form_last5: 2 })).rejects.toThrow();
   });
 });

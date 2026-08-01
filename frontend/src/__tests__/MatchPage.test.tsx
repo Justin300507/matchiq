@@ -63,7 +63,10 @@ describe("MatchPage", () => {
     await waitFor(() => expect(screen.getByText("Lakers")).toBeInTheDocument());
     expect(screen.getByText("Celtics")).toBeInTheDocument();
     expect(screen.getByText("105")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText("Home team's recent form")).toBeInTheDocument());
+    // "Home team's recent form" appears both in the explanation panel and as
+    // a What-If dropdown option — assert on the explanation's unique
+    // percentage value instead of the shared label text.
+    await waitFor(() => expect(screen.getByText("+20%")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText(/Nets/)).toBeInTheDocument());
   });
 
