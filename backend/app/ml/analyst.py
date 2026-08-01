@@ -1,13 +1,13 @@
 from datetime import datetime, timezone
 
-import anthropic
+from openai import OpenAI
 from sqlalchemy.orm import Session
 
 from app.features.build_features import compute_features
 from app.ml.predict import load_latest_artifact, predict_match
 from app.models_db import Match
 
-_MODEL = "claude-opus-5"
+_MODEL = "gpt-4o-mini"
 _CONTEXT_MATCH_LIMIT = 25
 
 # The analyst can only ever see what MatchIQ actually has: real upcoming
@@ -68,16 +68,17 @@ def answer_question(
     api_key: str,
 ) -> str:
     context = _build_match_context(db, artifact_dir, sport, league)
-    client = anthropic.Anthropic(api_key=api_key)
-    response = client.messages.create(
+    client = OpenAI(api_key=api_key)
+    response = client.chat.completions.create(
         model=_MODEL,
         max_tokens=1024,
-        system=_SYSTEM_PROMPT,
+        temperature=0.2,
         messages=[
+            {"role": "system", "content": _SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": f"Upcoming match predictions:\n{context}\n\nQuestion: {question}",
-            }
+            },
         ],
     )
-    return next(block.text for block in response.content if block.type == "text")
+    return response.choices[0].message.content

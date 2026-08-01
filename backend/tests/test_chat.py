@@ -21,14 +21,14 @@ def client_with_db(tmp_path):
 
 
 def test_chat_503_when_no_api_key_configured(client_with_db):
-    with patch("app.routers.chat.get_settings", return_value=SimpleNamespace(anthropic_api_key="")):
+    with patch("app.routers.chat.get_settings", return_value=SimpleNamespace(openai_api_key="")):
         response = client_with_db.post("/chat", json={"sport": "nba", "question": "Any confident picks?"})
 
     assert response.status_code == 503
 
 
 def test_chat_400_on_empty_question(client_with_db):
-    with patch("app.routers.chat.get_settings", return_value=SimpleNamespace(anthropic_api_key="fake-key")):
+    with patch("app.routers.chat.get_settings", return_value=SimpleNamespace(openai_api_key="fake-key")):
         response = client_with_db.post("/chat", json={"sport": "nba", "question": "   "})
 
     assert response.status_code == 400
@@ -38,7 +38,7 @@ def test_chat_400_on_empty_question(client_with_db):
 def test_chat_returns_answer_from_analyst(mock_answer, client_with_db):
     mock_answer.return_value = "The Lakers vs Celtics match has the highest home win probability."
 
-    with patch("app.routers.chat.get_settings", return_value=SimpleNamespace(anthropic_api_key="fake-key")):
+    with patch("app.routers.chat.get_settings", return_value=SimpleNamespace(openai_api_key="fake-key")):
         response = client_with_db.post(
             "/chat", json={"sport": "nba", "league": None, "question": "Which match has the highest confidence?"}
         )
