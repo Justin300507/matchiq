@@ -42,3 +42,4 @@ def test_predict_match_nba_returns_two_way_probs():
     assert prediction.draw_prob is None
     assert prediction.predicted_home_score == 105.0
     assert prediction.predicted_away_score == 98.0
+    assert prediction.confidence == "High"  # top prob 0.7 >= 0.65 threshold for a 2-way outcome

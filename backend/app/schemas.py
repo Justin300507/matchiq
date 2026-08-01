@@ -24,6 +24,7 @@ class PredictionOut(BaseModel):
     away_win_prob: float
     predicted_home_score: float
     predicted_away_score: float
+    model_confidence: str
 
 
 class ExplanationFactorOut(BaseModel):

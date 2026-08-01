@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { fetchExplanation } from "../api";
+import { ConfidenceBadge } from "./ConfidenceBadge";
 import type { ExplanationOut, PredictionOut } from "../types";
 
 function pct(value: number): string {
@@ -10,12 +11,6 @@ function signedPct(value: number): string {
   const rounded = Math.round(value * 10) / 10;
   return `${rounded > 0 ? "+" : ""}${rounded}%`;
 }
-
-const CONFIDENCE_STYLES: Record<ExplanationOut["model_confidence"], string> = {
-  High: "bg-green-100 text-green-800",
-  Medium: "bg-yellow-100 text-yellow-800",
-  Low: "bg-red-100 text-red-800",
-};
 
 export function GameCard({ prediction }: { prediction: PredictionOut }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -65,37 +60,32 @@ export function GameCard({ prediction }: { prediction: PredictionOut }) {
         <span>Away <span>{pct(prediction.away_win_prob)}</span></span>
       </div>
 
-      <button
-        type="button"
-        onClick={handleToggleWhy}
-        className="mt-3 text-xs font-medium text-blue-600 hover:underline"
-      >
-        {isOpen ? "Hide explanation" : "Why?"}
-      </button>
+      <div className="mt-3 flex items-center justify-between">
+        <ConfidenceBadge confidence={prediction.model_confidence} />
+        <button
+          type="button"
+          onClick={handleToggleWhy}
+          className="text-xs font-medium text-blue-600 hover:underline"
+        >
+          {isOpen ? "Hide explanation" : "Why?"}
+        </button>
+      </div>
 
       {isOpen && (
         <div className="mt-2 rounded border border-gray-100 bg-gray-50 p-3 text-xs">
           {isLoadingExplanation && <p className="text-gray-500">Loading explanation...</p>}
           {explainError && <p className="text-red-600">{explainError}</p>}
           {explanation && (
-            <>
-              <div className="mb-2 flex items-center justify-between">
-                <span className="font-semibold text-gray-700">Model confidence</span>
-                <span className={`rounded px-2 py-0.5 font-medium ${CONFIDENCE_STYLES[explanation.model_confidence]}`}>
-                  {explanation.model_confidence}
-                </span>
-              </div>
-              <ul className="space-y-1">
-                {explanation.factors.map((factor) => (
-                  <li key={factor.name} className="flex justify-between">
-                    <span className="text-gray-600">{factor.label}</span>
-                    <span className={factor.relative_influence_pct >= 0 ? "text-green-700" : "text-red-700"}>
-                      {signedPct(factor.relative_influence_pct)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
+            <ul className="space-y-1">
+              {explanation.factors.map((factor) => (
+                <li key={factor.name} className="flex justify-between">
+                  <span className="text-gray-600">{factor.label}</span>
+                  <span className={factor.relative_influence_pct >= 0 ? "text-green-700" : "text-red-700"}>
+                    {signedPct(factor.relative_influence_pct)}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       )}

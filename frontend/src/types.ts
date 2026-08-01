@@ -16,6 +16,7 @@ export interface PredictionOut {
   away_win_prob: number;
   predicted_home_score: number;
   predicted_away_score: number;
+  model_confidence: "High" | "Medium" | "Low";
 }
 
 export interface ExplanationFactorOut {

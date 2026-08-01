@@ -23,6 +23,7 @@ describe("GameList", () => {
       away_team: { id: 2, name: "Celtics", league: "NBA" },
       home_win_prob: 0.6, draw_prob: null, away_win_prob: 0.4,
       predicted_home_score: 105, predicted_away_score: 99,
+      model_confidence: "Medium",
     }];
     vi.spyOn(api, "fetchUpcomingPredictions").mockResolvedValue(predictions);
 

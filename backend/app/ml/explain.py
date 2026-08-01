@@ -5,6 +5,7 @@ import pandas as pd
 import shap
 
 from app.features.build_features import MatchFeatures
+from app.ml.predict import confidence_label
 
 _FEATURE_LABELS = {
     "home_form_last5": "Home team's recent form",
@@ -28,20 +29,6 @@ class ExplanationFactor:
 class Explanation:
     factors: list[ExplanationFactor]
     model_confidence: str
-
-
-def _confidence_label(top_prob: float, num_classes: int) -> str:
-    if num_classes == 2:
-        if top_prob >= 0.65:
-            return "High"
-        if top_prob >= 0.55:
-            return "Medium"
-        return "Low"
-    if top_prob >= 0.55:
-        return "High"
-    if top_prob >= 0.40:
-        return "Medium"
-    return "Low"
 
 
 def explain_prediction(artifact: dict, features: MatchFeatures) -> Explanation:
@@ -84,6 +71,6 @@ def explain_prediction(artifact: dict, features: MatchFeatures) -> Explanation:
     factors.sort(key=lambda f: abs(f.relative_influence_pct), reverse=True)
 
     proba = classifier.predict_proba(row)[0]
-    confidence = _confidence_label(float(max(proba)), len(labels))
+    confidence = confidence_label(float(max(proba)), len(labels))
 
     return Explanation(factors=factors, model_confidence=confidence)

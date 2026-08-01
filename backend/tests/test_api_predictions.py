@@ -43,7 +43,7 @@ def client_with_db(tmp_path):
 def test_upcoming_returns_predictions_for_sport(mock_predict, mock_load, client_with_db):
     client, match = client_with_db
     mock_load.return_value = {"labels": ["H", "A"]}
-    mock_predict.return_value = Prediction(0.65, None, 0.35, 105.0, 99.0)
+    mock_predict.return_value = Prediction(0.65, None, 0.35, 105.0, 99.0, "High")
 
     response = client.get("/predictions/upcoming?sport=nba")
 
@@ -65,7 +65,7 @@ def test_upcoming_returns_503_when_no_artifact(client_with_db):
 def test_get_prediction_by_id(mock_predict, mock_load, client_with_db):
     client, match = client_with_db
     mock_load.return_value = {"labels": ["H", "A"]}
-    mock_predict.return_value = Prediction(0.65, None, 0.35, 105.0, 99.0)
+    mock_predict.return_value = Prediction(0.65, None, 0.35, 105.0, 99.0, "High")
 
     response = client.get(f"/predictions/{match.id}")
 
@@ -152,7 +152,7 @@ def test_upcoming_mixes_leagues_instead_of_one_league_crowding_out_others(mock_p
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_artifact_dir] = lambda: tmp_path
     mock_load.return_value = {"labels": ["H", "D", "A"]}
-    mock_predict.return_value = Prediction(0.5, 0.25, 0.25, 1.5, 1.0)
+    mock_predict.return_value = Prediction(0.5, 0.25, 0.25, 1.5, 1.0, "Medium")
 
     client = TestClient(app)
     response = client.get("/predictions/upcoming?sport=soccer")
@@ -196,7 +196,7 @@ def test_upcoming_filters_to_one_league_when_requested(mock_predict, mock_load, 
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_artifact_dir] = lambda: tmp_path
     mock_load.return_value = {"labels": ["H", "D", "A"]}
-    mock_predict.return_value = Prediction(0.5, 0.25, 0.25, 1.5, 1.0)
+    mock_predict.return_value = Prediction(0.5, 0.25, 0.25, 1.5, 1.0, "Medium")
 
     client = TestClient(app)
     response = client.get("/predictions/upcoming?sport=soccer&league=Bundesliga")

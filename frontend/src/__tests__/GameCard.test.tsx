@@ -17,6 +17,7 @@ const basePrediction: PredictionOut = {
   away_win_prob: 0.35,
   predicted_home_score: 108,
   predicted_away_score: 101,
+  model_confidence: "Medium",
 };
 
 describe("GameCard", () => {
@@ -43,6 +44,11 @@ describe("GameCard", () => {
     expect(screen.queryByText("Draw")).not.toBeInTheDocument();
   });
 
+  it("renders the model confidence badge from the prediction", () => {
+    render(<GameCard prediction={basePrediction} />);
+    expect(screen.getByText("Medium confidence")).toBeInTheDocument();
+  });
+
   describe("Why? explanation panel", () => {
     afterEach(() => {
       vi.restoreAllMocks();
@@ -63,7 +69,7 @@ describe("GameCard", () => {
       expect(spy).not.toHaveBeenCalled();
     });
 
-    it("fetches and displays factors and confidence when clicked", async () => {
+    it("fetches and displays factors when clicked", async () => {
       vi.spyOn(api, "fetchExplanation").mockResolvedValue(explanation);
       render(<GameCard prediction={basePrediction} />);
 
@@ -71,7 +77,7 @@ describe("GameCard", () => {
 
       await waitFor(() => expect(screen.getByText("Home team's recent form")).toBeInTheDocument());
       expect(screen.getByText("+42.3%")).toBeInTheDocument();
-      expect(screen.getByText("High")).toBeInTheDocument();
+      expect(screen.getByText("-8.1%")).toBeInTheDocument();
     });
 
     it("does not refetch when toggled closed then open again", async () => {
@@ -80,12 +86,12 @@ describe("GameCard", () => {
 
       const button = screen.getByRole("button", { name: /why\?/i });
       fireEvent.click(button);
-      await waitFor(() => expect(screen.getByText("High")).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText("Home team's recent form")).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole("button", { name: /hide explanation/i }));
       fireEvent.click(screen.getByRole("button", { name: /why\?/i }));
 
-      await waitFor(() => expect(screen.getByText("High")).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText("Home team's recent form")).toBeInTheDocument());
       expect(spy).toHaveBeenCalledTimes(1);
     });
 

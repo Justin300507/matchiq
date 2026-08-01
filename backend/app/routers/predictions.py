@@ -31,6 +31,7 @@ def _to_prediction_out(match: Match, artifact: dict, db: Session) -> PredictionO
         away_win_prob=prediction.away_win_prob,
         predicted_home_score=prediction.predicted_home_score,
         predicted_away_score=prediction.predicted_away_score,
+        model_confidence=prediction.confidence,
     )
 
 
