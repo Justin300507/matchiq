@@ -1,6 +1,7 @@
 import logging
 from datetime import date, timedelta
 
+import requests
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -29,7 +30,14 @@ def sync_recent(db: Session, nba_api_key: str, football_api_key: str, days_back:
     today = date.today()
     current_season = today.year if today.month >= 7 else today.year - 1
     for league in LEAGUE_CODES:
-        soccer_page = fetch_matches(football_api_key, league, current_season)
+        try:
+            soccer_page = fetch_matches(football_api_key, league, current_season)
+        except requests.exceptions.RequestException:
+            # A competition's fixture list for the current season may not be
+            # published yet (e.g. Champions League group-stage dates aren't
+            # confirmed until closer to kickoff) — skip it, not the whole sync.
+            logger.warning("Skipping %s season=%s: fixtures not available", league, current_season, exc_info=True)
+            continue
         for raw in soccer_page["matches"]:
             try:
                 upsert_game(db, normalize_soccer_game(raw, league))

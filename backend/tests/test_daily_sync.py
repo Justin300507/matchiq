@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+import requests
+
 from app.db import Base, get_engine, get_session_factory
 from app.ingestion.daily_sync import sync_recent
 from app.ingestion.soccer_client import LEAGUE_CODES
@@ -44,6 +46,39 @@ def test_sync_recent_upserts_returned_games(mock_nba, mock_soccer):
 
     assert count == 1
     assert db.query(Match).count() == 1
+
+
+@patch("app.ingestion.daily_sync.fetch_matches")
+@patch("app.ingestion.daily_sync.fetch_games")
+def test_sync_recent_skips_league_whose_season_is_not_yet_published(mock_nba, mock_soccer):
+    db = make_db()
+    mock_nba.return_value = {"data": [], "meta": {"next_cursor": None}}
+
+    not_found = requests.Response()
+    not_found.status_code = 404
+
+    def raise_not_found():
+        raise requests.HTTPError(response=not_found)
+
+    not_found.raise_for_status = raise_not_found
+
+    def fetch_matches_side_effect(api_key, league, season):
+        if league == "Champions League":
+            not_found.raise_for_status()
+        return {"matches": [{
+            "id": 1, "utcDate": "2026-08-15T15:00:00Z",
+            "homeTeam": {"id": 1, "name": "A"}, "awayTeam": {"id": 2, "name": "B"},
+            "score": {"fullTime": {"home": None, "away": None}}, "status": "TIMED",
+        }]}
+
+    mock_soccer.side_effect = fetch_matches_side_effect
+
+    count = sync_recent(db, nba_api_key="a", football_api_key="b")
+
+    # One match per league except Champions League, which 404s and is skipped
+    # rather than crashing the whole sync.
+    assert count == len(LEAGUE_CODES) - 1
+    assert mock_soccer.call_count == len(LEAGUE_CODES)
 
 
 @patch("app.ingestion.daily_sync.fetch_matches")
