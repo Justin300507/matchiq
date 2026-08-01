@@ -31,3 +31,21 @@ def test_get_team_404_for_unknown_id(client_with_db):
     client, _ = client_with_db
     response = client.get("/teams/999999")
     assert response.status_code == 404
+
+
+def test_get_team_profile_returns_stats_for_a_team_with_no_matches(client_with_db):
+    client, team = client_with_db
+    response = client.get(f"/teams/{team.id}/profile")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["team_id"] == team.id
+    assert body["team_name"] == "Lakers"
+    assert body["matches_played"] == 0
+    assert body["elo_rating"] == 1500.0
+
+
+def test_get_team_profile_404_for_unknown_id(client_with_db):
+    client, _ = client_with_db
+    response = client.get("/teams/999999/profile")
+    assert response.status_code == 404
