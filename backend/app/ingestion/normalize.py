@@ -65,6 +65,41 @@ def normalize_soccer_game(raw: dict, league: str) -> RawGame:
     )
 
 
+_API_FOOTBALL_FINAL_STATUSES = {"ft", "aet", "pen"}
+_API_FOOTBALL_NON_PLAYABLE_STATUSES = {"pst", "canc", "abd", "awd", "wo"}
+
+
+def _normalize_api_football_status(status_short: str) -> str:
+    normalized = status_short.strip().lower()
+    if normalized in _API_FOOTBALL_FINAL_STATUSES:
+        return "final"
+    if normalized in _API_FOOTBALL_NON_PLAYABLE_STATUSES:
+        return "other"
+    return "scheduled"
+
+
+def normalize_api_football_fixture(raw: dict) -> RawGame:
+    # Prefixed IDs keep this provider's numbering from colliding with
+    # football-data.org's, since both are plain integers sharing the
+    # same (sport, external_id) uniqueness constraint.
+    fixture = raw["fixture"]
+    teams = raw["teams"]
+    goals = raw["goals"]
+    return RawGame(
+        external_id=f"af-{fixture['id']}",
+        sport="soccer",
+        league="Champions League",
+        date=datetime.fromisoformat(fixture["date"]),
+        home_team_external_id=f"af-{teams['home']['id']}",
+        home_team_name=teams["home"]["name"],
+        away_team_external_id=f"af-{teams['away']['id']}",
+        away_team_name=teams["away"]["name"],
+        home_score=goals["home"],
+        away_score=goals["away"],
+        status=_normalize_api_football_status(fixture["status"]["short"]),
+    )
+
+
 def _get_or_create_team(db: Session, sport: str, league: str, external_id: str, name: str) -> Team:
     team = (
         db.query(Team)

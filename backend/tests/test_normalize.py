@@ -1,7 +1,12 @@
 from datetime import datetime
 
 from app.db import Base, get_engine, get_session_factory
-from app.ingestion.normalize import normalize_nba_game, normalize_soccer_game, upsert_game
+from app.ingestion.normalize import (
+    normalize_api_football_fixture,
+    normalize_nba_game,
+    normalize_soccer_game,
+    upsert_game,
+)
 from app.models_db import Match, Team
 
 
@@ -76,6 +81,53 @@ def test_normalize_status_maps_postponed_to_other():
     }
     game = normalize_soccer_game(raw, league="EPL")
     assert game.status == "other"
+
+
+def test_normalize_api_football_fixture_maps_fields_with_prefixed_ids():
+    raw = {
+        "fixture": {
+            "id": 12345,
+            "date": "2026-08-11T19:00:00+00:00",
+            "status": {"long": "Not Started", "short": "NS", "elapsed": None},
+        },
+        "league": {"id": 2, "name": "UEFA Champions League", "season": 2026, "round": "3rd Qualifying Round"},
+        "teams": {
+            "home": {"id": 611, "name": "Sturm Graz", "winner": None},
+            "away": {"id": 645, "name": "Fenerbahce", "winner": None},
+        },
+        "goals": {"home": None, "away": None},
+    }
+    game = normalize_api_football_fixture(raw)
+    assert game.external_id == "af-12345"
+    assert game.sport == "soccer"
+    assert game.league == "Champions League"
+    assert game.home_team_external_id == "af-611"
+    assert game.home_team_name == "Sturm Graz"
+    assert game.away_team_external_id == "af-645"
+    assert game.away_team_name == "Fenerbahce"
+    assert game.home_score is None
+    assert game.away_score is None
+    assert game.status == "scheduled"
+
+
+def test_normalize_api_football_fixture_maps_finished_status():
+    raw = {
+        "fixture": {
+            "id": 12346,
+            "date": "2026-08-11T19:00:00+00:00",
+            "status": {"long": "Match Finished", "short": "FT", "elapsed": 90},
+        },
+        "league": {"id": 2, "name": "UEFA Champions League", "season": 2026, "round": "3rd Qualifying Round"},
+        "teams": {
+            "home": {"id": 611, "name": "Sturm Graz", "winner": True},
+            "away": {"id": 645, "name": "Fenerbahce", "winner": False},
+        },
+        "goals": {"home": 2, "away": 1},
+    }
+    game = normalize_api_football_fixture(raw)
+    assert game.home_score == 2
+    assert game.away_score == 1
+    assert game.status == "final"
 
 
 def test_upsert_game_creates_teams_and_match():
