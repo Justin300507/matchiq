@@ -83,7 +83,7 @@ def upsert_game(db: Session, game: RawGame) -> Match:
 
     match = (
         db.query(Match)
-        .filter(Match.sport == game.sport, Match.external_id == game.external_id)
+        .filter(Match.sport == game.sport, Match.league == game.league, Match.external_id == game.external_id)
         .one_or_none()
     )
     if match is None:
