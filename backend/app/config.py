@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     nba_api_key: str = ""
     football_data_api_key: str = ""
     artifact_dir: Path = Path("./artifacts")
+    allowed_origins: str = "http://localhost:5173,http://localhost:4173"
 
     class Config:
         env_file = ".env"

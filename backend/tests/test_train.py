@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from app.db import Base, get_engine, get_session_factory
-from app.ml.train import train_sport_models
+from app.ml.train import beats_baseline, train_sport_models
 from app.models_db import Match, Team
 
 
@@ -52,3 +52,15 @@ def test_train_sport_models_saves_artifact_when_it_beats_baseline(tmp_path: Path
         assert result["artifact_path"] == str(artifact_path)
     else:
         assert not artifact_path.exists()
+
+
+def test_beats_baseline_rejects_worse_than_baseline_model():
+    model_metrics = {"accuracy": 0.40, "log_loss": 0.9, "brier_score": 0.3}
+    baseline_metrics = {"accuracy": 0.60, "log_loss": 14.5, "brier_score": 0.4}
+    assert beats_baseline(model_metrics, baseline_metrics) is False
+
+
+def test_beats_baseline_accepts_better_than_baseline_model():
+    model_metrics = {"accuracy": 0.68, "log_loss": 0.6, "brier_score": 0.2}
+    baseline_metrics = {"accuracy": 0.60, "log_loss": 14.5, "brier_score": 0.4}
+    assert beats_baseline(model_metrics, baseline_metrics) is True

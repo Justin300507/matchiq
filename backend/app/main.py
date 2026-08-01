@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import Base, get_engine, get_session_factory
@@ -6,6 +7,14 @@ from app.db import Base, get_engine, get_session_factory
 app = FastAPI(title="MatchIQ API")
 
 _settings = get_settings()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_settings.allowed_origins.split(","),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 _engine = get_engine(_settings.database_url)
 Base.metadata.create_all(_engine)
 _SessionFactory = get_session_factory(_engine)

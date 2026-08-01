@@ -25,6 +25,10 @@ def _labels_for_sport(sport: str) -> list[str]:
     return ["H", "D", "A"] if sport == "soccer" else ["H", "A"]
 
 
+def beats_baseline(model_metrics: dict, baseline_metrics: dict) -> bool:
+    return model_metrics["accuracy"] > baseline_metrics["accuracy"]
+
+
 def train_sport_models(db: Session, sport: str, artifact_dir: Path) -> dict:
     df = build_training_dataframe(db, sport)
     df = df.sort_values("date").reset_index(drop=True)
@@ -60,7 +64,7 @@ def train_sport_models(db: Session, sport: str, artifact_dir: Path) -> dict:
     baseline_probs = naive_home_favorite_probs(len(y_test), sport)
     baseline_metrics = evaluate(list(y_test), baseline_probs, labels)
 
-    beat_baseline = model_metrics["log_loss"] < baseline_metrics["log_loss"]
+    beat_baseline = beats_baseline(model_metrics, baseline_metrics)
 
     artifact_path = None
     if beat_baseline:
