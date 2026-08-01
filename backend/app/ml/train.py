@@ -1,13 +1,14 @@
+import logging
 from pathlib import Path
 
 import joblib
-import numpy as np
-from sklearn.model_selection import train_test_split
 from sqlalchemy.orm import Session
 from xgboost import XGBClassifier, XGBRegressor
 
 from app.features.build_features import build_training_dataframe
 from app.ml.baseline import evaluate, naive_home_favorite_probs
+
+logger = logging.getLogger(__name__)
 
 FEATURE_COLUMNS = [
     "home_form_last5",
@@ -31,7 +32,11 @@ def train_sport_models(db: Session, sport: str, artifact_dir: Path) -> dict:
     # A sport with only H/A labels (e.g. nba) has no draw outcome; drop any
     # tied-score rows that don't fit the label space rather than feeding the
     # classifier a class it can't predict.
-    df = df[df["result"].isin(labels)].reset_index(drop=True)
+    filtered = df[df["result"].isin(labels)].reset_index(drop=True)
+    dropped = len(df) - len(filtered)
+    if dropped > 0:
+        logger.warning("Dropped %d %s row(s) with result outside label set %s", dropped, sport, labels)
+    df = filtered
 
     split_idx = int(len(df) * 0.8)
     train_df, test_df = df.iloc[:split_idx], df.iloc[split_idx:]
