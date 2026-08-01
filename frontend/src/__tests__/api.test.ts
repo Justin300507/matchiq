@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchUpcomingPredictions } from "../api";
-import type { PredictionOut } from "../types";
+import { fetchExplanation, fetchUpcomingPredictions } from "../api";
+import type { ExplanationOut, PredictionOut } from "../types";
 
 describe("fetchUpcomingPredictions", () => {
   afterEach(() => {
@@ -39,5 +39,32 @@ describe("fetchUpcomingPredictions", () => {
     expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining("league=Bundesliga"),
     );
+  });
+});
+
+describe("fetchExplanation", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("calls the predictions/{id}/explain endpoint", async () => {
+    const mockData: ExplanationOut = { game_id: 42, factors: [], model_confidence: "High" };
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockData,
+    }) as unknown as typeof fetch;
+
+    const result = await fetchExplanation(42);
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/predictions/42/explain"),
+    );
+    expect(result).toEqual(mockData);
+  });
+
+  it("throws when the response is not ok", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 503 }) as unknown as typeof fetch;
+
+    await expect(fetchExplanation(42)).rejects.toThrow();
   });
 });

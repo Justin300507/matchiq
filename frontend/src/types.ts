@@ -17,3 +17,15 @@ export interface PredictionOut {
   predicted_home_score: number;
   predicted_away_score: number;
 }
+
+export interface ExplanationFactorOut {
+  name: string;
+  label: string;
+  relative_influence_pct: number;
+}
+
+export interface ExplanationOut {
+  game_id: number;
+  factors: ExplanationFactorOut[];
+  model_confidence: "High" | "Medium" | "Low";
+}

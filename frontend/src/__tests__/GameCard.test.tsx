@@ -1,8 +1,9 @@
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { GameCard } from "../components/GameCard";
-import type { PredictionOut } from "../types";
+import * as api from "../api";
+import type { ExplanationOut, PredictionOut } from "../types";
 
 const basePrediction: PredictionOut = {
   game_id: 1,
@@ -40,5 +41,61 @@ describe("GameCard", () => {
   it("omits draw probability for nba", () => {
     render(<GameCard prediction={basePrediction} />);
     expect(screen.queryByText("Draw")).not.toBeInTheDocument();
+  });
+
+  describe("Why? explanation panel", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const explanation: ExplanationOut = {
+      game_id: 1,
+      model_confidence: "High",
+      factors: [
+        { name: "home_form_last5", label: "Home team's recent form", relative_influence_pct: 42.3 },
+        { name: "away_rest_days", label: "Away team's rest advantage", relative_influence_pct: -8.1 },
+      ],
+    };
+
+    it("does not fetch the explanation until the button is clicked", () => {
+      const spy = vi.spyOn(api, "fetchExplanation").mockResolvedValue(explanation);
+      render(<GameCard prediction={basePrediction} />);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it("fetches and displays factors and confidence when clicked", async () => {
+      vi.spyOn(api, "fetchExplanation").mockResolvedValue(explanation);
+      render(<GameCard prediction={basePrediction} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /why\?/i }));
+
+      await waitFor(() => expect(screen.getByText("Home team's recent form")).toBeInTheDocument());
+      expect(screen.getByText("+42.3%")).toBeInTheDocument();
+      expect(screen.getByText("High")).toBeInTheDocument();
+    });
+
+    it("does not refetch when toggled closed then open again", async () => {
+      const spy = vi.spyOn(api, "fetchExplanation").mockResolvedValue(explanation);
+      render(<GameCard prediction={basePrediction} />);
+
+      const button = screen.getByRole("button", { name: /why\?/i });
+      fireEvent.click(button);
+      await waitFor(() => expect(screen.getByText("High")).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole("button", { name: /hide explanation/i }));
+      fireEvent.click(screen.getByRole("button", { name: /why\?/i }));
+
+      await waitFor(() => expect(screen.getByText("High")).toBeInTheDocument());
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it("shows an error message when the explanation fails to load", async () => {
+      vi.spyOn(api, "fetchExplanation").mockRejectedValue(new Error("boom"));
+      render(<GameCard prediction={basePrediction} />);
+
+      fireEvent.click(screen.getByRole("button", { name: /why\?/i }));
+
+      await waitFor(() => expect(screen.getByText(/couldn't load the explanation/i)).toBeInTheDocument());
+    });
   });
 });

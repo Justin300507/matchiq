@@ -1,10 +1,45 @@
-import type { PredictionOut } from "../types";
+import { useState } from "react";
+import { fetchExplanation } from "../api";
+import type { ExplanationOut, PredictionOut } from "../types";
 
 function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
+function signedPct(value: number): string {
+  const rounded = Math.round(value * 10) / 10;
+  return `${rounded > 0 ? "+" : ""}${rounded}%`;
+}
+
+const CONFIDENCE_STYLES: Record<ExplanationOut["model_confidence"], string> = {
+  High: "bg-green-100 text-green-800",
+  Medium: "bg-yellow-100 text-yellow-800",
+  Low: "bg-red-100 text-red-800",
+};
+
 export function GameCard({ prediction }: { prediction: PredictionOut }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [explanation, setExplanation] = useState<ExplanationOut | null>(null);
+  const [explainError, setExplainError] = useState<string | null>(null);
+  const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
+
+  function handleToggleWhy() {
+    if (isOpen) {
+      setIsOpen(false);
+      return;
+    }
+    setIsOpen(true);
+    if (explanation || isLoadingExplanation) {
+      return;
+    }
+    setIsLoadingExplanation(true);
+    setExplainError(null);
+    fetchExplanation(prediction.game_id)
+      .then(setExplanation)
+      .catch(() => setExplainError("Couldn't load the explanation. Please try again later."))
+      .finally(() => setIsLoadingExplanation(false));
+  }
+
   return (
     <div className="rounded-lg border border-gray-200 p-4 shadow-sm">
       <div className="flex justify-between text-sm text-gray-500">
@@ -29,6 +64,41 @@ export function GameCard({ prediction }: { prediction: PredictionOut }) {
         {prediction.draw_prob !== null && <span>Draw <span>{pct(prediction.draw_prob)}</span></span>}
         <span>Away <span>{pct(prediction.away_win_prob)}</span></span>
       </div>
+
+      <button
+        type="button"
+        onClick={handleToggleWhy}
+        className="mt-3 text-xs font-medium text-blue-600 hover:underline"
+      >
+        {isOpen ? "Hide explanation" : "Why?"}
+      </button>
+
+      {isOpen && (
+        <div className="mt-2 rounded border border-gray-100 bg-gray-50 p-3 text-xs">
+          {isLoadingExplanation && <p className="text-gray-500">Loading explanation...</p>}
+          {explainError && <p className="text-red-600">{explainError}</p>}
+          {explanation && (
+            <>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="font-semibold text-gray-700">Model confidence</span>
+                <span className={`rounded px-2 py-0.5 font-medium ${CONFIDENCE_STYLES[explanation.model_confidence]}`}>
+                  {explanation.model_confidence}
+                </span>
+              </div>
+              <ul className="space-y-1">
+                {explanation.factors.map((factor) => (
+                  <li key={factor.name} className="flex justify-between">
+                    <span className="text-gray-600">{factor.label}</span>
+                    <span className={factor.relative_influence_pct >= 0 ? "text-green-700" : "text-red-700"}>
+                      {signedPct(factor.relative_influence_pct)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
