@@ -5,14 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models_db import Match, Team
 
-_STATUS_MAP = {
-    "final": "final",
-    "finished": "final",
-    "scheduled": "scheduled",
-    "postponed": "other",
-    "cancelled": "other",
-    "suspended": "other",
-}
+_TERMINAL_NON_PLAYABLE = {"postponed", "cancelled", "suspended", "awarded"}
 
 
 @dataclass
@@ -31,7 +24,12 @@ class RawGame:
 
 
 def _normalize_status(raw_status: str) -> str:
-    return _STATUS_MAP.get(raw_status.strip().lower(), "other")
+    normalized = raw_status.strip().lower()
+    if normalized in ("final", "finished"):
+        return "final"
+    if normalized in _TERMINAL_NON_PLAYABLE:
+        return "other"
+    return "scheduled"
 
 
 def normalize_nba_game(raw: dict) -> RawGame:

@@ -10,7 +10,7 @@ _settings = get_settings()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_settings.allowed_origins.split(","),
+    allow_origins=[origin.strip() for origin in _settings.allowed_origins.split(",")],
     allow_methods=["*"],
     allow_headers=["*"],
 )

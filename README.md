@@ -26,6 +26,12 @@ Edit `.env` and fill in:
 `DATABASE_URL` defaults to a local SQLite file if left as-is; point it at a
 Postgres instance for anything beyond quick local testing.
 
+`ALLOWED_ORIGINS` (comma-separated) controls which frontend origins the API's
+CORS policy accepts; it defaults to the local Vite dev ports
+(`http://localhost:5173,http://localhost:4173`), so when deploying, set it to
+include your deployed frontend's actual URL (e.g. `https://your-app.vercel.app`)
+in addition to (or instead of) the localhost defaults.
+
 ## Getting real predictions (first-run data + training)
 
 The API only serves predictions once a trained model artifact exists for a

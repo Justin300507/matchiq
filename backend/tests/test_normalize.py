@@ -52,6 +52,32 @@ def test_normalize_soccer_game_maps_fields():
     assert game.status == "final"
 
 
+def test_normalize_status_maps_timed_to_scheduled():
+    raw = {
+        "id": 1,
+        "utcDate": "2026-03-01T15:00:00Z",
+        "homeTeam": {"id": 1, "name": "A"},
+        "awayTeam": {"id": 2, "name": "B"},
+        "score": {"fullTime": {"home": None, "away": None}},
+        "status": "TIMED",
+    }
+    game = normalize_soccer_game(raw, league="EPL")
+    assert game.status == "scheduled"
+
+
+def test_normalize_status_maps_postponed_to_other():
+    raw = {
+        "id": 2,
+        "utcDate": "2026-03-01T15:00:00Z",
+        "homeTeam": {"id": 1, "name": "A"},
+        "awayTeam": {"id": 2, "name": "B"},
+        "score": {"fullTime": {"home": None, "away": None}},
+        "status": "POSTPONED",
+    }
+    game = normalize_soccer_game(raw, league="EPL")
+    assert game.status == "other"
+
+
 def test_upsert_game_creates_teams_and_match():
     db = make_db()
     game = normalize_nba_game({
