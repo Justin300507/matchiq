@@ -45,15 +45,26 @@ def test_backfill_nba_paginates_until_no_next_cursor(mock_fetch):
 @patch("app.ingestion.backfill.fetch_matches")
 def test_backfill_soccer_pulls_each_league_and_season(mock_fetch):
     db = make_db()
-    mock_fetch.return_value = {
-        "matches": [{
-            "id": 1, "utcDate": "2026-02-01T15:00:00Z",
-            "homeTeam": {"id": 10, "name": "Arsenal"},
-            "awayTeam": {"id": 20, "name": "Chelsea"},
-            "score": {"fullTime": {"home": 2, "away": 1}},
-            "status": "FINISHED",
-        }]
-    }
+    mock_fetch.side_effect = [
+        {
+            "matches": [{
+                "id": 1, "utcDate": "2026-02-01T15:00:00Z",
+                "homeTeam": {"id": 10, "name": "Arsenal"},
+                "awayTeam": {"id": 20, "name": "Chelsea"},
+                "score": {"fullTime": {"home": 2, "away": 1}},
+                "status": "FINISHED",
+            }]
+        },
+        {
+            "matches": [{
+                "id": 2, "utcDate": "2026-02-02T20:00:00Z",
+                "homeTeam": {"id": 30, "name": "Real Madrid"},
+                "awayTeam": {"id": 40, "name": "Barcelona"},
+                "score": {"fullTime": {"home": 1, "away": 1}},
+                "status": "FINISHED",
+            }]
+        },
+    ]
 
     count = backfill_soccer(db, api_key="secret", leagues=["EPL", "La Liga"], seasons=[2024])
 

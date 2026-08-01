@@ -25,6 +25,7 @@ def backfill_nba(db: Session, api_key: str, seasons: list[str]) -> int:
                     count += 1
                 except Exception:
                     logger.warning("Skipping unparseable NBA game %r", raw.get("id"), exc_info=True)
+                    db.rollback()
             cursor = page["meta"]["next_cursor"]
             if cursor is None:
                 break
@@ -42,6 +43,7 @@ def backfill_soccer(db: Session, api_key: str, leagues: list[str], seasons: list
                     count += 1
                 except Exception:
                     logger.warning("Skipping unparseable soccer match %r", raw.get("id"), exc_info=True)
+                    db.rollback()
     return count
 
 

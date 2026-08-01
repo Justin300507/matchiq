@@ -19,7 +19,7 @@ class Team(Base):
 
 class Match(Base):
     __tablename__ = "matches"
-    __table_args__ = (UniqueConstraint("sport", "league", "external_id", name="uq_match_sport_league_external_id"),)
+    __table_args__ = (UniqueConstraint("sport", "external_id", name="uq_match_sport_external_id"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     external_id: Mapped[str] = mapped_column(String, nullable=False)
