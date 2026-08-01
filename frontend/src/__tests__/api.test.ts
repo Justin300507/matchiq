@@ -1,0 +1,29 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fetchUpcomingPredictions } from "../api";
+import type { PredictionOut } from "../types";
+
+describe("fetchUpcomingPredictions", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("calls the predictions/upcoming endpoint with the sport query param", async () => {
+    const mockData: PredictionOut[] = [];
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockData,
+    }) as unknown as typeof fetch;
+
+    await fetchUpcomingPredictions("nba");
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/predictions/upcoming?sport=nba"),
+    );
+  });
+
+  it("throws when the response is not ok", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 503 }) as unknown as typeof fetch;
+
+    await expect(fetchUpcomingPredictions("soccer")).rejects.toThrow();
+  });
+});
