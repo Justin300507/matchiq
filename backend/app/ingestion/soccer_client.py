@@ -12,6 +12,7 @@ LEAGUE_CODES = {
     "Serie A": "SA",
     "Bundesliga": "BL1",
     "Ligue 1": "FL1",
+    "Champions League": "CL",
 }
 
 

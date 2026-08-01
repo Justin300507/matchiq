@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 from app.db import Base, get_engine, get_session_factory
 from app.ingestion.daily_sync import sync_recent
+from app.ingestion.soccer_client import LEAGUE_CODES
 from app.models_db import Match
 
 
@@ -21,7 +22,7 @@ def test_sync_recent_pulls_nba_and_all_soccer_leagues(mock_nba, mock_soccer):
     sync_recent(db, nba_api_key="a", football_api_key="b")
 
     assert mock_nba.call_count == 1
-    assert mock_soccer.call_count == 5  # one call per top-5 league
+    assert mock_soccer.call_count == len(LEAGUE_CODES)  # one call per configured competition
 
 
 @patch("app.ingestion.daily_sync.fetch_matches")

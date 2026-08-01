@@ -5,13 +5,14 @@ import requests
 from app.ingestion.soccer_client import LEAGUE_CODES, fetch_matches
 
 
-def test_league_codes_cover_top_5_leagues():
+def test_league_codes_cover_top_5_leagues_plus_champions_league():
     assert LEAGUE_CODES == {
         "EPL": "PL",
         "La Liga": "PD",
         "Serie A": "SA",
         "Bundesliga": "BL1",
         "Ligue 1": "FL1",
+        "Champions League": "CL",
     }
 
 
