@@ -76,3 +76,54 @@ def test_get_prediction_404_for_unknown_id(client_with_db):
     client, _ = client_with_db
     response = client.get("/predictions/999999")
     assert response.status_code == 404
+
+
+@patch("app.routers.predictions.load_latest_artifact")
+@patch("app.routers.predictions.predict_match")
+def test_upcoming_mixes_leagues_instead_of_one_league_crowding_out_others(mock_predict, mock_load, tmp_path):
+    engine = get_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    db = get_session_factory(engine)()
+
+    home = Team(external_id="1", sport="soccer", league="La Liga", name="Alaves")
+    away = Team(external_id="2", sport="soccer", league="La Liga", name="Getafe")
+    db.add_all([home, away])
+    db.commit()
+
+    # La Liga's fixtures all fall earlier than the single Bundesliga fixture,
+    # mirroring the real-world case where leagues start their seasons on
+    # different dates.
+    for i in range(15):
+        db.add(Match(
+            external_id=f"la-liga-{i}", sport="soccer", league="La Liga",
+            date=datetime.utcnow() + timedelta(days=1, hours=i),
+            home_team_id=home.id, away_team_id=away.id,
+            home_score=None, away_score=None, status="scheduled",
+        ))
+
+    bundesliga_home = Team(external_id="3", sport="soccer", league="Bundesliga", name="Bayern")
+    bundesliga_away = Team(external_id="4", sport="soccer", league="Bundesliga", name="Dortmund")
+    db.add_all([bundesliga_home, bundesliga_away])
+    db.commit()
+    db.add(Match(
+        external_id="bundesliga-1", sport="soccer", league="Bundesliga",
+        date=datetime.utcnow() + timedelta(days=20),
+        home_team_id=bundesliga_home.id, away_team_id=bundesliga_away.id,
+        home_score=None, away_score=None, status="scheduled",
+    ))
+    db.commit()
+
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_artifact_dir] = lambda: tmp_path
+    mock_load.return_value = {"labels": ["H", "D", "A"]}
+    mock_predict.return_value = Prediction(0.5, 0.25, 0.25, 1.5, 1.0)
+
+    client = TestClient(app)
+    response = client.get("/predictions/upcoming?sport=soccer")
+
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    leagues_in_response = {item["league"] for item in response.json()}
+    assert "Bundesliga" in leagues_in_response
+    assert "La Liga" in leagues_in_response

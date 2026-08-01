@@ -11,6 +11,9 @@ from app.schemas import PredictionOut
 
 router = APIRouter(prefix="/predictions", tags=["predictions"])
 
+PER_LEAGUE_LIMIT = 10
+OVERALL_LIMIT = 60
+
 
 def _to_prediction_out(match: Match, artifact: dict, db: Session) -> PredictionOut:
     features = compute_features(db, match)
@@ -40,10 +43,27 @@ def get_upcoming(sport: str, db: Session = Depends(get_db), artifact_dir=Depends
         db.query(Match)
         .filter(Match.sport == sport, Match.status == "scheduled", Match.date >= datetime.now(timezone.utc).replace(tzinfo=None))
         .order_by(Match.date.asc())
-        .limit(50)
+        .limit(2000)
         .all()
     )
-    return [_to_prediction_out(match, artifact, db) for match in matches]
+
+    # Leagues start their seasons on different dates, so a flat date-ordered
+    # limit would let whichever league happens to kick off earliest crowd out
+    # every other league. Cap how many matches each league contributes before
+    # re-sorting, so the dashboard shows a mix rather than one league only.
+    per_league_counts: dict[str, int] = {}
+    selected: list[Match] = []
+    for match in matches:
+        count = per_league_counts.get(match.league, 0)
+        if count >= PER_LEAGUE_LIMIT:
+            continue
+        per_league_counts[match.league] = count + 1
+        selected.append(match)
+        if len(selected) >= OVERALL_LIMIT:
+            break
+
+    selected.sort(key=lambda match: match.date)
+    return [_to_prediction_out(match, artifact, db) for match in selected]
 
 
 @router.get("/{game_id}", response_model=PredictionOut)
