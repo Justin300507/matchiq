@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  fetchAccuracy,
   fetchExplanation,
   fetchMatchContext,
   fetchPrediction,
@@ -7,7 +8,14 @@ import {
   fetchTeamProfile,
   fetchUpcomingPredictions,
 } from "../api";
-import type { ExplanationOut, MatchContextOut, PredictionOut, SimulationOut, TeamProfileOut } from "../types";
+import type {
+  BacktestOut,
+  ExplanationOut,
+  MatchContextOut,
+  PredictionOut,
+  SimulationOut,
+  TeamProfileOut,
+} from "../types";
 
 describe("fetchUpcomingPredictions", () => {
   afterEach(() => {
@@ -191,5 +199,33 @@ describe("fetchTeamProfile", () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 }) as unknown as typeof fetch;
 
     await expect(fetchTeamProfile(7)).rejects.toThrow();
+  });
+});
+
+describe("fetchAccuracy", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("calls the accuracy endpoint with the sport query param", async () => {
+    const mockData: BacktestOut = {
+      sport: "nba", predictions_evaluated: 120, model_accuracy: 0.58, model_log_loss: 0.65,
+      model_brier_score: 0.23, baseline_accuracy: 0.53, baseline_log_loss: 15.2, baseline_brier_score: 0.47,
+    };
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockData,
+    }) as unknown as typeof fetch;
+
+    const result = await fetchAccuracy("nba");
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining("/accuracy?sport=nba"));
+    expect(result).toEqual(mockData);
+  });
+
+  it("throws when the response is not ok", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 503 }) as unknown as typeof fetch;
+
+    await expect(fetchAccuracy("nba")).rejects.toThrow();
   });
 });

@@ -70,6 +70,17 @@ class MatchContextOut(BaseModel):
     head_to_head: list[RecentResultOut]
 
 
+class BacktestOut(BaseModel):
+    sport: str
+    predictions_evaluated: int
+    model_accuracy: float
+    model_log_loss: float
+    model_brier_score: float
+    baseline_accuracy: float
+    baseline_log_loss: float
+    baseline_brier_score: float
+
+
 class TeamProfileOut(BaseModel):
     team_id: int
     team_name: str

@@ -1,4 +1,4 @@
-import type { ExplanationOut, MatchContextOut, PredictionOut, SimulationOut, TeamProfileOut } from "./types";
+import type { BacktestOut, ExplanationOut, MatchContextOut, PredictionOut, SimulationOut, TeamProfileOut } from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -50,6 +50,14 @@ export async function fetchTeamProfile(teamId: number): Promise<TeamProfileOut> 
   const response = await fetch(`${API_BASE_URL}/teams/${teamId}/profile`);
   if (!response.ok) {
     throw new Error(`Failed to fetch team profile: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchAccuracy(sport: "nba" | "soccer"): Promise<BacktestOut> {
+  const response = await fetch(`${API_BASE_URL}/accuracy?sport=${sport}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch accuracy: ${response.status}`);
   }
   return response.json();
 }

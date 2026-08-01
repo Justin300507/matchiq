@@ -62,6 +62,17 @@ export interface MatchContextOut {
   head_to_head: RecentResultOut[];
 }
 
+export interface BacktestOut {
+  sport: string;
+  predictions_evaluated: number;
+  model_accuracy: number;
+  model_log_loss: number;
+  model_brier_score: number;
+  baseline_accuracy: number;
+  baseline_log_loss: number;
+  baseline_brier_score: number;
+}
+
 export interface TeamProfileOut {
   team_id: number;
   team_name: string;
