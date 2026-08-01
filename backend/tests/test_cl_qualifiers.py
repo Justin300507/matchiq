@@ -31,14 +31,15 @@ def test_sync_cl_qualifiers_only_ingests_qualifying_and_playoff_rounds(mock_fetc
             _fixture(1, "1st Qualifying Round"),
             _fixture(2, "3rd Qualifying Round"),
             _fixture(3, "Play-offs"),
-            _fixture(4, "League Stage"),  # already covered by football-data.org, should be skipped
+            _fixture(4, "Preliminary Round 3"),
+            _fixture(5, "League Stage"),  # already covered by football-data.org, should be skipped
         ]
     }
 
     count = sync_cl_qualifiers(db, api_key="secret", season=2026)
 
-    assert count == 3
-    assert db.query(Match).count() == 3
+    assert count == 4
+    assert db.query(Match).count() == 4
 
 
 @patch("app.ingestion.cl_qualifiers.fetch_fixtures")

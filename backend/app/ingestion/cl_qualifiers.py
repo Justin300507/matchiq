@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 # onward; this only fills the qualifying-round gap it doesn't track, so any
 # round without "qualifying" or "play-off" in its name is skipped to avoid
 # ingesting duplicate (differently-numbered) copies of the same matches.
-_QUALIFYING_ROUND_KEYWORDS = ("qualifying", "play-off", "playoff")
+_QUALIFYING_ROUND_KEYWORDS = ("qualifying", "play-off", "playoff", "preliminary")
 
 
 def _is_qualifying_round(round_name: str) -> bool:
