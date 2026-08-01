@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 
 import joblib
+import numpy as np
 from sqlalchemy.orm import Session
 from xgboost import XGBClassifier, XGBRegressor
 
@@ -57,6 +58,12 @@ def train_sport_models(db: Session, sport: str, artifact_dir: Path) -> dict:
     regressor_away = XGBRegressor(n_estimators=100, max_depth=3)
     regressor_away.fit(X_train, train_df["away_score"])
 
+    # Empirical residual spread on held-out data, used by the Monte Carlo
+    # simulator to sample realistic score variance around the point
+    # prediction instead of an invented constant.
+    home_score_std = float(np.std(test_df["home_score"].to_numpy() - regressor_home.predict(X_test))) if len(test_df) else 0.0
+    away_score_std = float(np.std(test_df["away_score"].to_numpy() - regressor_away.predict(X_test))) if len(test_df) else 0.0
+
     proba = classifier.predict_proba(X_test)
     model_probs = [dict(zip(labels, row)) for row in proba]
     model_metrics = evaluate(list(y_test), model_probs, labels)
@@ -77,6 +84,8 @@ def train_sport_models(db: Session, sport: str, artifact_dir: Path) -> dict:
                 "regressor_away": regressor_away,
                 "feature_columns": FEATURE_COLUMNS,
                 "labels": labels,
+                "home_score_std": home_score_std,
+                "away_score_std": away_score_std,
             },
             artifact_path,
         )

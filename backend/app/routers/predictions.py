@@ -7,13 +7,32 @@ from app.features.build_features import compute_features
 from app.main import get_artifact_dir, get_db
 from app.ml.explain import explain_prediction
 from app.ml.predict import load_latest_artifact, predict_match
+from app.ml.simulate import simulate_match
 from app.models_db import Match
-from app.schemas import ExplanationFactorOut, ExplanationOut, PredictionOut
+from app.schemas import (
+    ExplanationFactorOut,
+    ExplanationOut,
+    PredictionOut,
+    ScorelineOut,
+    SimulationOut,
+)
 
 router = APIRouter(prefix="/predictions", tags=["predictions"])
 
 PER_LEAGUE_LIMIT = 10
 OVERALL_LIMIT = 60
+
+
+def _get_match_and_artifact(game_id: int, db: Session, artifact_dir) -> tuple[Match, dict]:
+    match = db.query(Match).filter(Match.id == game_id).one_or_none()
+    if match is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    artifact = load_latest_artifact(match.sport, artifact_dir)
+    if artifact is None:
+        raise HTTPException(status_code=503, detail=f"No trained model available for sport={match.sport}")
+
+    return match, artifact
 
 
 def _to_prediction_out(match: Match, artifact: dict, db: Session) -> PredictionOut:
@@ -82,26 +101,13 @@ def get_upcoming(
 
 @router.get("/{game_id}", response_model=PredictionOut)
 def get_prediction(game_id: int, db: Session = Depends(get_db), artifact_dir=Depends(get_artifact_dir)):
-    match = db.query(Match).filter(Match.id == game_id).one_or_none()
-    if match is None:
-        raise HTTPException(status_code=404, detail="Game not found")
-
-    artifact = load_latest_artifact(match.sport, artifact_dir)
-    if artifact is None:
-        raise HTTPException(status_code=503, detail=f"No trained model available for sport={match.sport}")
-
+    match, artifact = _get_match_and_artifact(game_id, db, artifact_dir)
     return _to_prediction_out(match, artifact, db)
 
 
 @router.get("/{game_id}/explain", response_model=ExplanationOut)
 def get_explanation(game_id: int, db: Session = Depends(get_db), artifact_dir=Depends(get_artifact_dir)):
-    match = db.query(Match).filter(Match.id == game_id).one_or_none()
-    if match is None:
-        raise HTTPException(status_code=404, detail="Game not found")
-
-    artifact = load_latest_artifact(match.sport, artifact_dir)
-    if artifact is None:
-        raise HTTPException(status_code=503, detail=f"No trained model available for sport={match.sport}")
+    match, artifact = _get_match_and_artifact(game_id, db, artifact_dir)
 
     features = compute_features(db, match)
     explanation = explain_prediction(artifact, features)
@@ -112,4 +118,29 @@ def get_explanation(game_id: int, db: Session = Depends(get_db), artifact_dir=De
             for f in explanation.factors
         ],
         model_confidence=explanation.model_confidence,
+    )
+
+
+@router.get("/{game_id}/simulate", response_model=SimulationOut)
+def get_simulation(
+    game_id: int,
+    n: int = 10000,
+    db: Session = Depends(get_db),
+    artifact_dir=Depends(get_artifact_dir),
+):
+    match, artifact = _get_match_and_artifact(game_id, db, artifact_dir)
+
+    n_simulations = max(1, min(n, 50000))
+    features = compute_features(db, match)
+    result = simulate_match(artifact, features, n_simulations=n_simulations)
+    return SimulationOut(
+        game_id=match.id,
+        home_win_pct=result.home_win_pct,
+        draw_pct=result.draw_pct,
+        away_win_pct=result.away_win_pct,
+        top_scorelines=[
+            ScorelineOut(home_score=s.home_score, away_score=s.away_score, frequency_pct=s.frequency_pct)
+            for s in result.top_scorelines
+        ],
+        n_simulations=result.n_simulations,
     )

@@ -37,3 +37,34 @@ class ExplanationOut(BaseModel):
     game_id: int
     factors: list[ExplanationFactorOut]
     model_confidence: str
+
+
+class ScorelineOut(BaseModel):
+    home_score: int
+    away_score: int
+    frequency_pct: float
+
+
+class SimulationOut(BaseModel):
+    game_id: int
+    home_win_pct: float
+    draw_pct: float | None
+    away_win_pct: float
+    top_scorelines: list[ScorelineOut]
+    n_simulations: int
+
+
+class TeamProfileOut(BaseModel):
+    team_id: int
+    team_name: str
+    league: str
+    matches_played: int
+    wins: int
+    draws: int
+    losses: int
+    goals_for_avg: float
+    goals_against_avg: float
+    home_win_rate: float
+    away_win_rate: float
+    last5_form: str
+    elo_rating: float

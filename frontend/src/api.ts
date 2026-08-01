@@ -1,4 +1,4 @@
-import type { ExplanationOut, PredictionOut } from "./types";
+import type { ExplanationOut, PredictionOut, SimulationOut, TeamProfileOut } from "./types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -18,6 +18,22 @@ export async function fetchExplanation(gameId: number): Promise<ExplanationOut> 
   const response = await fetch(`${API_BASE_URL}/predictions/${gameId}/explain`);
   if (!response.ok) {
     throw new Error(`Failed to fetch explanation: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchSimulation(gameId: number): Promise<SimulationOut> {
+  const response = await fetch(`${API_BASE_URL}/predictions/${gameId}/simulate`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch simulation: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchTeamProfile(teamId: number): Promise<TeamProfileOut> {
+  const response = await fetch(`${API_BASE_URL}/teams/${teamId}/profile`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch team profile: ${response.status}`);
   }
   return response.json();
 }

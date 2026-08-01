@@ -30,3 +30,34 @@ export interface ExplanationOut {
   factors: ExplanationFactorOut[];
   model_confidence: "High" | "Medium" | "Low";
 }
+
+export interface ScorelineOut {
+  home_score: number;
+  away_score: number;
+  frequency_pct: number;
+}
+
+export interface SimulationOut {
+  game_id: number;
+  home_win_pct: number;
+  draw_pct: number | null;
+  away_win_pct: number;
+  top_scorelines: ScorelineOut[];
+  n_simulations: number;
+}
+
+export interface TeamProfileOut {
+  team_id: number;
+  team_name: string;
+  league: string;
+  matches_played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goals_for_avg: number;
+  goals_against_avg: number;
+  home_win_rate: number;
+  away_win_rate: number;
+  last5_form: string;
+  elo_rating: number;
+}

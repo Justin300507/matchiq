@@ -8,6 +8,7 @@ from app.db import Base, get_engine, get_session_factory
 from app.main import app, get_artifact_dir, get_db
 from app.ml.explain import Explanation, ExplanationFactor
 from app.ml.predict import Prediction
+from app.ml.simulate import ScorelineResult, SimulationResult
 from app.models_db import Match, Team
 
 
@@ -112,6 +113,55 @@ def test_get_explanation_503_when_no_artifact(client_with_db):
     client, match = client_with_db
     response = client.get(f"/predictions/{match.id}/explain")
     assert response.status_code == 503
+
+
+@patch("app.routers.predictions.load_latest_artifact")
+@patch("app.routers.predictions.simulate_match")
+def test_get_simulation_returns_scorelines_and_outcome_percentages(mock_simulate, mock_load, client_with_db):
+    client, match = client_with_db
+    mock_load.return_value = {"labels": ["H", "A"]}
+    mock_simulate.return_value = SimulationResult(
+        home_win_pct=62.5,
+        draw_pct=None,
+        away_win_pct=37.5,
+        top_scorelines=[ScorelineResult(home_score=2, away_score=1, frequency_pct=8.4)],
+        n_simulations=10000,
+    )
+
+    response = client.get(f"/predictions/{match.id}/simulate")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["game_id"] == match.id
+    assert body["home_win_pct"] == 62.5
+    assert body["n_simulations"] == 10000
+    assert body["top_scorelines"][0]["home_score"] == 2
+
+
+def test_get_simulation_404_for_unknown_id(client_with_db):
+    client, _ = client_with_db
+    response = client.get("/predictions/999999/simulate")
+    assert response.status_code == 404
+
+
+def test_get_simulation_503_when_no_artifact(client_with_db):
+    client, match = client_with_db
+    response = client.get(f"/predictions/{match.id}/simulate")
+    assert response.status_code == 503
+
+
+@patch("app.routers.predictions.load_latest_artifact")
+@patch("app.routers.predictions.simulate_match")
+def test_get_simulation_clamps_n_query_param(mock_simulate, mock_load, client_with_db):
+    client, match = client_with_db
+    mock_load.return_value = {"labels": ["H", "A"]}
+    mock_simulate.return_value = SimulationResult(
+        home_win_pct=50.0, draw_pct=None, away_win_pct=50.0, top_scorelines=[], n_simulations=50000,
+    )
+
+    client.get(f"/predictions/{match.id}/simulate?n=999999999")
+
+    assert mock_simulate.call_args.kwargs["n_simulations"] == 50000
 
 
 @patch("app.routers.predictions.load_latest_artifact")
