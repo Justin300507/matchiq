@@ -24,3 +24,15 @@ class PredictionOut(BaseModel):
     away_win_prob: float
     predicted_home_score: float
     predicted_away_score: float
+
+
+class ExplanationFactorOut(BaseModel):
+    name: str
+    label: str
+    relative_influence_pct: float
+
+
+class ExplanationOut(BaseModel):
+    game_id: int
+    factors: list[ExplanationFactorOut]
+    model_confidence: str

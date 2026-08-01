@@ -5,9 +5,10 @@ from sqlalchemy.orm import Session
 
 from app.features.build_features import compute_features
 from app.main import get_artifact_dir, get_db
+from app.ml.explain import explain_prediction
 from app.ml.predict import load_latest_artifact, predict_match
 from app.models_db import Match
-from app.schemas import PredictionOut
+from app.schemas import ExplanationFactorOut, ExplanationOut, PredictionOut
 
 router = APIRouter(prefix="/predictions", tags=["predictions"])
 
@@ -89,3 +90,25 @@ def get_prediction(game_id: int, db: Session = Depends(get_db), artifact_dir=Dep
         raise HTTPException(status_code=503, detail=f"No trained model available for sport={match.sport}")
 
     return _to_prediction_out(match, artifact, db)
+
+
+@router.get("/{game_id}/explain", response_model=ExplanationOut)
+def get_explanation(game_id: int, db: Session = Depends(get_db), artifact_dir=Depends(get_artifact_dir)):
+    match = db.query(Match).filter(Match.id == game_id).one_or_none()
+    if match is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    artifact = load_latest_artifact(match.sport, artifact_dir)
+    if artifact is None:
+        raise HTTPException(status_code=503, detail=f"No trained model available for sport={match.sport}")
+
+    features = compute_features(db, match)
+    explanation = explain_prediction(artifact, features)
+    return ExplanationOut(
+        game_id=match.id,
+        factors=[
+            ExplanationFactorOut(name=f.name, label=f.label, relative_influence_pct=f.relative_influence_pct)
+            for f in explanation.factors
+        ],
+        model_confidence=explanation.model_confidence,
+    )

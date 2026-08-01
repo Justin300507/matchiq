@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.db import Base, get_engine, get_session_factory
 from app.main import app, get_artifact_dir, get_db
+from app.ml.explain import Explanation, ExplanationFactor
 from app.ml.predict import Prediction
 from app.models_db import Match, Team
 
@@ -76,6 +77,41 @@ def test_get_prediction_404_for_unknown_id(client_with_db):
     client, _ = client_with_db
     response = client.get("/predictions/999999")
     assert response.status_code == 404
+
+
+@patch("app.routers.predictions.load_latest_artifact")
+@patch("app.routers.predictions.explain_prediction")
+def test_get_explanation_returns_factors_and_confidence(mock_explain, mock_load, client_with_db):
+    client, match = client_with_db
+    mock_load.return_value = {"labels": ["H", "A"]}
+    mock_explain.return_value = Explanation(
+        factors=[
+            ExplanationFactor(name="home_form_last5", label="Home team's recent form", relative_influence_pct=42.0),
+            ExplanationFactor(name="away_rest_days", label="Away team's rest advantage", relative_influence_pct=-8.0),
+        ],
+        model_confidence="High",
+    )
+
+    response = client.get(f"/predictions/{match.id}/explain")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["game_id"] == match.id
+    assert body["model_confidence"] == "High"
+    assert body["factors"][0]["name"] == "home_form_last5"
+    assert body["factors"][0]["relative_influence_pct"] == 42.0
+
+
+def test_get_explanation_404_for_unknown_id(client_with_db):
+    client, _ = client_with_db
+    response = client.get("/predictions/999999/explain")
+    assert response.status_code == 404
+
+
+def test_get_explanation_503_when_no_artifact(client_with_db):
+    client, match = client_with_db
+    response = client.get(f"/predictions/{match.id}/explain")
+    assert response.status_code == 503
 
 
 @patch("app.routers.predictions.load_latest_artifact")
