@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.env
+matchiq.db
+artifacts/
+node_modules/
+dist/
+.vite/
