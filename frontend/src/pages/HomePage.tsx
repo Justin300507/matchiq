@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChatPanel } from "../components/ChatPanel";
 import { GameList } from "../components/GameList";
 
 interface Tab {
@@ -33,6 +34,11 @@ export function HomePage() {
           </button>
         ))}
       </div>
+      <div className="mt-6 rounded border border-gray-100 bg-gray-50 p-4">
+        <p className="mb-2 text-xs font-semibold text-gray-700">Ask the analyst</p>
+        <ChatPanel sport={activeTab.sport} league={activeTab.league} />
+      </div>
+
       <div className="mt-6">
         <GameList sport={activeTab.sport} league={activeTab.league} />
       </div>

@@ -32,11 +32,12 @@ def get_artifact_dir():
     return _settings.artifact_dir
 
 
-from app.routers import accuracy, predictions, teams
+from app.routers import accuracy, chat, predictions, teams
 
 app.include_router(predictions.router)
 app.include_router(teams.router)
 app.include_router(accuracy.router)
+app.include_router(chat.router)
 
 
 @app.get("/health")

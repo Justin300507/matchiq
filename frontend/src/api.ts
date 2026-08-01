@@ -1,5 +1,6 @@
 import type {
   BacktestOut,
+  ChatResponse,
   ExplanationOut,
   MatchContextOut,
   PredictionOut,
@@ -7,6 +8,15 @@ import type {
   TeamProfileOut,
   WhatIfOut,
 } from "./types";
+
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
@@ -78,6 +88,18 @@ export async function fetchAccuracy(sport: "nba" | "soccer"): Promise<BacktestOu
   const response = await fetch(`${API_BASE_URL}/accuracy?sport=${sport}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch accuracy: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function askAnalyst(sport: "nba" | "soccer", league: string | undefined, question: string): Promise<ChatResponse> {
+  const response = await fetch(`${API_BASE_URL}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sport, league: league ?? null, question }),
+  });
+  if (!response.ok) {
+    throw new ApiError(`Failed to get an answer: ${response.status}`, response.status);
   }
   return response.json();
 }

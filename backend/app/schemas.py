@@ -111,3 +111,13 @@ class TeamProfileOut(BaseModel):
     away_win_rate: float
     last5_form: str
     elo_rating: float
+
+
+class ChatRequest(BaseModel):
+    sport: str
+    league: str | None = None
+    question: str
+
+
+class ChatResponse(BaseModel):
+    answer: str

@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  ApiError,
+  askAnalyst,
   fetchAccuracy,
   fetchExplanation,
   fetchMatchContext,
@@ -11,6 +13,7 @@ import {
 } from "../api";
 import type {
   BacktestOut,
+  ChatResponse,
   ExplanationOut,
   MatchContextOut,
   PredictionOut,
@@ -261,5 +264,38 @@ describe("fetchWhatIf", () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 400 }) as unknown as typeof fetch;
 
     await expect(fetchWhatIf(42, { home_form_last5: 2 })).rejects.toThrow();
+  });
+});
+
+describe("askAnalyst", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("posts sport, league, and question and returns the answer", async () => {
+    const mockData: ChatResponse = { answer: "Lakers are favored." };
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockData,
+    }) as unknown as typeof fetch;
+
+    const result = await askAnalyst("nba", undefined, "Who is favored?");
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining("/chat"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ sport: "nba", league: null, question: "Who is favored?" }),
+      }),
+    );
+    expect(result).toEqual(mockData);
+  });
+
+  it("throws an ApiError carrying the status code when the response is not ok", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 503 }) as unknown as typeof fetch;
+
+    await expect(askAnalyst("nba", undefined, "Who is favored?")).rejects.toMatchObject(
+      new ApiError("Failed to get an answer: 503", 503),
+    );
   });
 });

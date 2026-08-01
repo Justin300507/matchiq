@@ -104,3 +104,7 @@ export interface TeamProfileOut {
   last5_form: string;
   elo_rating: number;
 }
+
+export interface ChatResponse {
+  answer: string;
+}
