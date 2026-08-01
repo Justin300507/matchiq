@@ -9,6 +9,9 @@ _STATUS_MAP = {
     "final": "final",
     "finished": "final",
     "scheduled": "scheduled",
+    "postponed": "other",
+    "cancelled": "other",
+    "suspended": "other",
 }
 
 
@@ -28,7 +31,7 @@ class RawGame:
 
 
 def _normalize_status(raw_status: str) -> str:
-    return _STATUS_MAP.get(raw_status.strip().lower(), "scheduled")
+    return _STATUS_MAP.get(raw_status.strip().lower(), "other")
 
 
 def normalize_nba_game(raw: dict) -> RawGame:

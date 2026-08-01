@@ -26,7 +26,8 @@ def sync_recent(db: Session, nba_api_key: str, football_api_key: str, days_back:
             logger.warning("Skipping unparseable NBA game %r", raw.get("id"), exc_info=True)
             db.rollback()
 
-    current_season = date.today().year
+    today = date.today()
+    current_season = today.year if today.month >= 7 else today.year - 1
     for league in LEAGUE_CODES:
         soccer_page = fetch_matches(football_api_key, league, current_season)
         for raw in soccer_page["matches"]:

@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -34,7 +36,13 @@ def get_upcoming(sport: str, db: Session = Depends(get_db), artifact_dir=Depends
     if artifact is None:
         raise HTTPException(status_code=503, detail=f"No trained model available for sport={sport}")
 
-    matches = db.query(Match).filter(Match.sport == sport, Match.status == "scheduled").all()
+    matches = (
+        db.query(Match)
+        .filter(Match.sport == sport, Match.status == "scheduled", Match.date >= datetime.now(timezone.utc).replace(tzinfo=None))
+        .order_by(Match.date.asc())
+        .limit(50)
+        .all()
+    )
     return [_to_prediction_out(match, artifact, db) for match in matches]
 
 
