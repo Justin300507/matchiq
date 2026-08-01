@@ -23,6 +23,12 @@ def get_artifact_dir():
     return _settings.artifact_dir
 
 
+from app.routers import predictions, teams
+
+app.include_router(predictions.router)
+app.include_router(teams.router)
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
