@@ -1,41 +1,19 @@
-import { useState } from "react";
-import { GameList } from "./components/GameList";
-
-interface Tab {
-  label: string;
-  sport: "nba" | "soccer";
-  league?: string;
-}
-
-const TABS: Tab[] = [
-  { label: "NBA", sport: "nba" },
-  { label: "EPL", sport: "soccer", league: "EPL" },
-  { label: "La Liga", sport: "soccer", league: "La Liga" },
-  { label: "Serie A", sport: "soccer", league: "Serie A" },
-  { label: "Bundesliga", sport: "soccer", league: "Bundesliga" },
-  { label: "Ligue 1", sport: "soccer", league: "Ligue 1" },
-  { label: "Champions League", sport: "soccer", league: "Champions League" },
-];
+import { Link, Route, Routes } from "react-router-dom";
+import { HomePage } from "./pages/HomePage";
+import { TeamPage } from "./pages/TeamPage";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<Tab>(TABS[0]);
-
   return (
     <div className="mx-auto max-w-6xl p-6">
-      <h1 className="text-2xl font-bold">MatchIQ</h1>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {TABS.map((tab) => (
-          <button
-            key={tab.label}
-            className={`rounded px-3 py-1 ${activeTab.label === tab.label ? "bg-blue-600 text-white" : "bg-gray-100"}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="flex items-center gap-4">
+        <Link to="/" className="text-2xl font-bold">MatchIQ</Link>
       </div>
+
       <div className="mt-6">
-        <GameList sport={activeTab.sport} league={activeTab.league} />
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/team/:teamId" element={<TeamPage />} />
+        </Routes>
       </div>
     </div>
   );

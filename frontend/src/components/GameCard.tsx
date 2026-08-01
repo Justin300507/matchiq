@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { fetchExplanation } from "../api";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import type { ExplanationOut, PredictionOut } from "../types";
@@ -43,11 +44,15 @@ export function GameCard({ prediction }: { prediction: PredictionOut }) {
       </div>
 
       <div className="mt-2 flex items-center justify-between">
-        <span className="font-semibold">{prediction.home_team.name}</span>
+        <Link to={`/team/${prediction.home_team.id}`} className="font-semibold hover:underline">
+          {prediction.home_team.name}
+        </Link>
         <span className="text-lg font-bold">{Math.round(prediction.predicted_home_score)}</span>
       </div>
       <div className="mt-1 flex items-center justify-between">
-        <span className="font-semibold">{prediction.away_team.name}</span>
+        <Link to={`/team/${prediction.away_team.id}`} className="font-semibold hover:underline">
+          {prediction.away_team.name}
+        </Link>
         <span className="text-lg font-bold">{Math.round(prediction.predicted_away_score)}</span>
       </div>
 
@@ -62,13 +67,18 @@ export function GameCard({ prediction }: { prediction: PredictionOut }) {
 
       <div className="mt-3 flex items-center justify-between">
         <ConfidenceBadge confidence={prediction.model_confidence} />
-        <button
-          type="button"
-          onClick={handleToggleWhy}
-          className="text-xs font-medium text-blue-600 hover:underline"
-        >
-          {isOpen ? "Hide explanation" : "Why?"}
-        </button>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={handleToggleWhy}
+            className="text-xs font-medium text-blue-600 hover:underline"
+          >
+            {isOpen ? "Hide explanation" : "Why?"}
+          </button>
+          <Link to={`/match/${prediction.game_id}`} className="text-xs font-medium text-blue-600 hover:underline">
+            Full match
+          </Link>
+        </div>
       </div>
 
       {isOpen && (

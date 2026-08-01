@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom";
+import { MemoryRouter } from "react-router-dom";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GameCard } from "../components/GameCard";
@@ -22,7 +23,7 @@ const basePrediction: PredictionOut = {
 
 describe("GameCard", () => {
   it("renders team names and predicted score", () => {
-    render(<GameCard prediction={basePrediction} />);
+    render(<MemoryRouter><GameCard prediction={basePrediction} /></MemoryRouter>);
     expect(screen.getByText("Lakers")).toBeInTheDocument();
     expect(screen.getByText("Celtics")).toBeInTheDocument();
     expect(screen.getByText("108")).toBeInTheDocument();
@@ -30,22 +31,22 @@ describe("GameCard", () => {
   });
 
   it("renders home win probability as a percentage", () => {
-    render(<GameCard prediction={basePrediction} />);
+    render(<MemoryRouter><GameCard prediction={basePrediction} /></MemoryRouter>);
     expect(screen.getByText("65%")).toBeInTheDocument();
   });
 
   it("renders draw probability only when present", () => {
-    render(<GameCard prediction={{ ...basePrediction, sport: "soccer", draw_prob: 0.25, home_win_prob: 0.55, away_win_prob: 0.2 }} />);
+    render(<MemoryRouter><GameCard prediction={{ ...basePrediction, sport: "soccer", draw_prob: 0.25, home_win_prob: 0.55, away_win_prob: 0.2 }} /></MemoryRouter>);
     expect(screen.getByText("25%")).toBeInTheDocument();
   });
 
   it("omits draw probability for nba", () => {
-    render(<GameCard prediction={basePrediction} />);
+    render(<MemoryRouter><GameCard prediction={basePrediction} /></MemoryRouter>);
     expect(screen.queryByText("Draw")).not.toBeInTheDocument();
   });
 
   it("renders the model confidence badge from the prediction", () => {
-    render(<GameCard prediction={basePrediction} />);
+    render(<MemoryRouter><GameCard prediction={basePrediction} /></MemoryRouter>);
     expect(screen.getByText("Medium confidence")).toBeInTheDocument();
   });
 
@@ -65,13 +66,13 @@ describe("GameCard", () => {
 
     it("does not fetch the explanation until the button is clicked", () => {
       const spy = vi.spyOn(api, "fetchExplanation").mockResolvedValue(explanation);
-      render(<GameCard prediction={basePrediction} />);
+      render(<MemoryRouter><GameCard prediction={basePrediction} /></MemoryRouter>);
       expect(spy).not.toHaveBeenCalled();
     });
 
     it("fetches and displays factors when clicked", async () => {
       vi.spyOn(api, "fetchExplanation").mockResolvedValue(explanation);
-      render(<GameCard prediction={basePrediction} />);
+      render(<MemoryRouter><GameCard prediction={basePrediction} /></MemoryRouter>);
 
       fireEvent.click(screen.getByRole("button", { name: /why\?/i }));
 
@@ -82,7 +83,7 @@ describe("GameCard", () => {
 
     it("does not refetch when toggled closed then open again", async () => {
       const spy = vi.spyOn(api, "fetchExplanation").mockResolvedValue(explanation);
-      render(<GameCard prediction={basePrediction} />);
+      render(<MemoryRouter><GameCard prediction={basePrediction} /></MemoryRouter>);
 
       const button = screen.getByRole("button", { name: /why\?/i });
       fireEvent.click(button);
@@ -97,7 +98,7 @@ describe("GameCard", () => {
 
     it("shows an error message when the explanation fails to load", async () => {
       vi.spyOn(api, "fetchExplanation").mockRejectedValue(new Error("boom"));
-      render(<GameCard prediction={basePrediction} />);
+      render(<MemoryRouter><GameCard prediction={basePrediction} /></MemoryRouter>);
 
       fireEvent.click(screen.getByRole("button", { name: /why\?/i }));
 

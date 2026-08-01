@@ -1,4 +1,5 @@
 import "@testing-library/jest-dom";
+import { MemoryRouter } from "react-router-dom";
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GameList } from "../components/GameList";
@@ -12,7 +13,7 @@ describe("GameList", () => {
 
   it("shows a loading state before data arrives", () => {
     vi.spyOn(api, "fetchUpcomingPredictions").mockReturnValue(new Promise(() => {}));
-    render(<GameList sport="nba" />);
+    render(<MemoryRouter><GameList sport="nba" /></MemoryRouter>);
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
   });
 
@@ -27,7 +28,7 @@ describe("GameList", () => {
     }];
     vi.spyOn(api, "fetchUpcomingPredictions").mockResolvedValue(predictions);
 
-    render(<GameList sport="nba" />);
+    render(<MemoryRouter><GameList sport="nba" /></MemoryRouter>);
 
     await waitFor(() => expect(screen.getByText("Lakers")).toBeInTheDocument());
   });
@@ -35,7 +36,7 @@ describe("GameList", () => {
   it("shows an error message when the fetch fails", async () => {
     vi.spyOn(api, "fetchUpcomingPredictions").mockRejectedValue(new Error("boom"));
 
-    render(<GameList sport="nba" />);
+    render(<MemoryRouter><GameList sport="nba" /></MemoryRouter>);
 
     await waitFor(() => expect(screen.getByText(/couldn't load predictions/i)).toBeInTheDocument());
   });
@@ -43,7 +44,7 @@ describe("GameList", () => {
   it("shows an empty-state message when there are no upcoming games", async () => {
     vi.spyOn(api, "fetchUpcomingPredictions").mockResolvedValue([]);
 
-    render(<GameList sport="nba" />);
+    render(<MemoryRouter><GameList sport="nba" /></MemoryRouter>);
 
     await waitFor(() => expect(screen.getByText(/no upcoming games/i)).toBeInTheDocument());
   });
