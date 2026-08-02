@@ -1,0 +1,255 @@
+from datetime import datetime, timezone
+
+import requests
+from fastapi import APIRouter, Depends, HTTPException, Request
+from sqlalchemy.orm import Session
+
+from app.features.build_features import (
+    compute_features,
+    compute_features_bulk,
+)
+from app.integrations.polymarket_odds import find_match_odds
+from app.main import get_artifact_dir, get_db
+from app.ml.counterfactual import simulate_counterfactual
+from app.ml.explain import explain_prediction
+from app.ml.match_context import compute_match_context
+from app.ml.predict import (
+    Prediction,
+    load_latest_artifact,
+    predict_batch,
+    predict_match,
+)
+from app.ml.simulate import simulate_match
+from app.models_db import Match
+from app.schemas import (
+    ExplanationFactorOut,
+    ExplanationOut,
+    MarketOddsOut,
+    MatchContextOut,
+    PredictionOut,
+    PredictionSummaryOut,
+    RecentResultOut,
+    ScorelineOut,
+    SimulationOut,
+    WhatIfOut,
+)
+
+router = APIRouter(prefix="/predictions", tags=["predictions"])
+
+PER_LEAGUE_LIMIT = 10
+OVERALL_LIMIT = 60
+
+
+def _get_match_and_artifact(game_id: int, db: Session, artifact_dir) -> tuple[Match, dict]:
+    match = db.query(Match).filter(Match.id == game_id).one_or_none()
+    if match is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    artifact = load_latest_artifact(match.sport, artifact_dir)
+    if artifact is None:
+        raise HTTPException(status_code=503, detail=f"No trained model available for sport={match.sport}")
+
+    return match, artifact
+
+
+def _to_prediction_out(match: Match, prediction: Prediction) -> PredictionOut:
+    return PredictionOut(
+        game_id=match.id,
+        sport=match.sport,
+        league=match.league,
+        date=match.date,
+        home_team=match.home_team,
+        away_team=match.away_team,
+        home_win_prob=prediction.home_win_prob,
+        draw_prob=prediction.draw_prob,
+        away_win_prob=prediction.away_win_prob,
+        predicted_home_score=prediction.predicted_home_score,
+        predicted_away_score=prediction.predicted_away_score,
+        model_confidence=prediction.confidence,
+    )
+
+
+@router.get("/upcoming", response_model=list[PredictionOut])
+def get_upcoming(
+    sport: str,
+    league: str | None = None,
+    db: Session = Depends(get_db),
+    artifact_dir=Depends(get_artifact_dir),
+):
+    artifact = load_latest_artifact(sport, artifact_dir)
+    if artifact is None:
+        raise HTTPException(status_code=503, detail=f"No trained model available for sport={sport}")
+
+    query = db.query(Match).filter(
+        Match.sport == sport,
+        Match.status == "scheduled",
+        Match.date >= datetime.now(timezone.utc).replace(tzinfo=None),
+    )
+    if league is not None:
+        query = query.filter(Match.league == league)
+
+    matches = query.order_by(Match.date.asc()).limit(2000).all()
+
+    if league is not None:
+        # A specific league was requested, so there's nothing to balance
+        # against — just take the soonest matches for that league.
+        selected = matches[:OVERALL_LIMIT]
+    else:
+        # Leagues start their seasons on different dates, so a flat date-ordered
+        # limit would let whichever league happens to kick off earliest crowd out
+        # every other league. Cap how many matches each league contributes before
+        # re-sorting, so the dashboard shows a mix rather than one league only.
+        per_league_counts: dict[str, int] = {}
+        selected = []
+        for match in matches:
+            count = per_league_counts.get(match.league, 0)
+            if count >= PER_LEAGUE_LIMIT:
+                continue
+            per_league_counts[match.league] = count + 1
+            selected.append(match)
+            if len(selected) >= OVERALL_LIMIT:
+                break
+
+    selected = sorted(selected, key=lambda match: match.date)
+    features_by_id = compute_features_bulk(db, sport, selected)
+    predictions = predict_batch(artifact, [features_by_id[match.id] for match in selected])
+    return [_to_prediction_out(match, prediction) for match, prediction in zip(selected, predictions)]
+
+
+@router.get("/{game_id}", response_model=PredictionOut)
+def get_prediction(game_id: int, db: Session = Depends(get_db), artifact_dir=Depends(get_artifact_dir)):
+    match, artifact = _get_match_and_artifact(game_id, db, artifact_dir)
+    features = compute_features(db, match)
+    prediction = predict_match(artifact, features)
+    return _to_prediction_out(match, prediction)
+
+
+@router.get("/{game_id}/explain", response_model=ExplanationOut)
+def get_explanation(game_id: int, db: Session = Depends(get_db), artifact_dir=Depends(get_artifact_dir)):
+    match, artifact = _get_match_and_artifact(game_id, db, artifact_dir)
+
+    features = compute_features(db, match)
+    explanation = explain_prediction(artifact, features)
+    return ExplanationOut(
+        game_id=match.id,
+        factors=[
+            ExplanationFactorOut(name=f.name, label=f.label, relative_influence_pct=f.relative_influence_pct)
+            for f in explanation.factors
+        ],
+        model_confidence=explanation.model_confidence,
+    )
+
+
+@router.get("/{game_id}/simulate", response_model=SimulationOut)
+def get_simulation(
+    game_id: int,
+    n: int = 10000,
+    db: Session = Depends(get_db),
+    artifact_dir=Depends(get_artifact_dir),
+):
+    match, artifact = _get_match_and_artifact(game_id, db, artifact_dir)
+
+    n_simulations = max(1, min(n, 50000))
+    features = compute_features(db, match)
+    result = simulate_match(artifact, features, n_simulations=n_simulations)
+    return SimulationOut(
+        game_id=match.id,
+        home_win_pct=result.home_win_pct,
+        draw_pct=result.draw_pct,
+        away_win_pct=result.away_win_pct,
+        top_scorelines=[
+            ScorelineOut(home_score=s.home_score, away_score=s.away_score, frequency_pct=s.frequency_pct)
+            for s in result.top_scorelines
+        ],
+        n_simulations=result.n_simulations,
+    )
+
+
+def _to_recent_result_out(r) -> RecentResultOut:
+    return RecentResultOut(
+        date=r.date, opponent_name=r.opponent_name, is_home=r.is_home,
+        team_score=r.team_score, opponent_score=r.opponent_score, result=r.result,
+    )
+
+
+def _to_prediction_summary(prediction: Prediction) -> PredictionSummaryOut:
+    return PredictionSummaryOut(
+        home_win_prob=prediction.home_win_prob,
+        draw_prob=prediction.draw_prob,
+        away_win_prob=prediction.away_win_prob,
+        predicted_home_score=prediction.predicted_home_score,
+        predicted_away_score=prediction.predicted_away_score,
+        model_confidence=prediction.confidence,
+    )
+
+
+@router.get("/{game_id}/whatif", response_model=WhatIfOut)
+def get_whatif(
+    game_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    artifact_dir=Depends(get_artifact_dir),
+):
+    match, artifact = _get_match_and_artifact(game_id, db, artifact_dir)
+
+    overrides: dict[str, float] = {}
+    for key, value in request.query_params.items():
+        try:
+            overrides[key] = float(value)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid value for {key}: {value!r}")
+
+    features = compute_features(db, match)
+    try:
+        original, counterfactual = simulate_counterfactual(artifact, features, overrides)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return WhatIfOut(
+        game_id=match.id,
+        overrides_applied=overrides,
+        original=_to_prediction_summary(original),
+        counterfactual=_to_prediction_summary(counterfactual),
+    )
+
+
+@router.get("/{game_id}/context", response_model=MatchContextOut)
+def get_match_context(game_id: int, db: Session = Depends(get_db)):
+    match = db.query(Match).filter(Match.id == game_id).one_or_none()
+    if match is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    context = compute_match_context(db, match)
+    return MatchContextOut(
+        game_id=match.id,
+        home_recent_form=[_to_recent_result_out(r) for r in context.home_recent_form],
+        away_recent_form=[_to_recent_result_out(r) for r in context.away_recent_form],
+        head_to_head=[_to_recent_result_out(r) for r in context.head_to_head],
+    )
+
+
+@router.get("/{game_id}/market-odds", response_model=MarketOddsOut)
+def get_market_odds(game_id: int, db: Session = Depends(get_db)):
+    match = db.query(Match).filter(Match.id == game_id).one_or_none()
+    if match is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    try:
+        odds = find_match_odds(match.home_team.name, match.away_team.name, match.date)
+    except requests.exceptions.RequestException:
+        # A transient failure to reach Polymarket looks the same to the
+        # caller as "no market found" -- neither is worth a 500.
+        return MarketOddsOut(available=False)
+
+    if odds is None:
+        return MarketOddsOut(available=False)
+
+    return MarketOddsOut(
+        available=True,
+        source=odds.source,
+        event_title=odds.event_title,
+        event_url=odds.event_url,
+        home_decimal_odds=odds.home_decimal_odds,
+        draw_decimal_odds=odds.draw_decimal_odds,
+        away_decimal_odds=odds.away_decimal_odds,
+    )

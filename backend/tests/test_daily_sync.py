@@ -1,0 +1,104 @@
+from unittest.mock import patch
+
+import requests
+
+from app.db import Base, get_engine, get_session_factory
+from app.ingestion.daily_sync import sync_recent
+from app.ingestion.soccer_client import LEAGUE_CODES
+from app.models_db import Match
+
+
+def make_db():
+    engine = get_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    return get_session_factory(engine)()
+
+
+@patch("app.ingestion.daily_sync.fetch_matches")
+@patch("app.ingestion.daily_sync.fetch_games")
+def test_sync_recent_pulls_nba_and_all_soccer_leagues(mock_nba, mock_soccer):
+    db = make_db()
+    mock_nba.return_value = {"data": [], "meta": {"next_cursor": None}}
+    mock_soccer.return_value = {"matches": []}
+
+    sync_recent(db, nba_api_key="a", football_api_key="b")
+
+    assert mock_nba.call_count == 1
+    assert mock_soccer.call_count == len(LEAGUE_CODES)  # one call per configured competition
+
+
+@patch("app.ingestion.daily_sync.fetch_matches")
+@patch("app.ingestion.daily_sync.fetch_games")
+def test_sync_recent_upserts_returned_games(mock_nba, mock_soccer):
+    db = make_db()
+    mock_nba.return_value = {
+        "data": [{
+            "id": 1, "date": "2026-01-01T00:00:00.000Z",
+            "home_team": {"id": 1, "full_name": "Lakers"},
+            "visitor_team": {"id": 2, "full_name": "Celtics"},
+            "home_team_score": 100, "visitor_team_score": 90, "status": "Final",
+        }],
+        "meta": {"next_cursor": None},
+    }
+    mock_soccer.return_value = {"matches": []}
+
+    count = sync_recent(db, nba_api_key="a", football_api_key="b")
+
+    assert count == 1
+    assert db.query(Match).count() == 1
+
+
+@patch("app.ingestion.daily_sync.fetch_matches")
+@patch("app.ingestion.daily_sync.fetch_games")
+def test_sync_recent_skips_league_whose_season_is_not_yet_published(mock_nba, mock_soccer):
+    db = make_db()
+    mock_nba.return_value = {"data": [], "meta": {"next_cursor": None}}
+
+    not_found = requests.Response()
+    not_found.status_code = 404
+
+    def raise_not_found():
+        raise requests.HTTPError(response=not_found)
+
+    not_found.raise_for_status = raise_not_found
+
+    def fetch_matches_side_effect(api_key, league, season):
+        if league == "Champions League":
+            not_found.raise_for_status()
+        return {"matches": [{
+            "id": 1, "utcDate": "2026-08-15T15:00:00Z",
+            "homeTeam": {"id": 1, "name": "A"}, "awayTeam": {"id": 2, "name": "B"},
+            "score": {"fullTime": {"home": None, "away": None}}, "status": "TIMED",
+        }]}
+
+    mock_soccer.side_effect = fetch_matches_side_effect
+
+    count = sync_recent(db, nba_api_key="a", football_api_key="b")
+
+    # One match per league except Champions League, which 404s and is skipped
+    # rather than crashing the whole sync.
+    assert count == len(LEAGUE_CODES) - 1
+    assert mock_soccer.call_count == len(LEAGUE_CODES)
+
+
+@patch("app.ingestion.daily_sync.fetch_matches")
+@patch("app.ingestion.daily_sync.fetch_games")
+def test_sync_recent_skips_bad_game_and_keeps_going(mock_nba, mock_soccer):
+    db = make_db()
+    mock_nba.return_value = {
+        "data": [
+            {"id": 1, "date": "not-a-valid-date", "home_team": {"id": 1, "full_name": "Lakers"},
+             "visitor_team": {"id": 2, "full_name": "Celtics"}, "home_team_score": 100,
+             "visitor_team_score": 90, "status": "Final"},
+            {"id": 2, "date": "2026-01-02T00:00:00.000Z", "home_team": {"id": 1, "full_name": "Lakers"},
+             "visitor_team": {"id": 3, "full_name": "Nets"}, "home_team_score": 95,
+             "visitor_team_score": 99, "status": "Final"},
+        ],
+        "meta": {"next_cursor": None},
+    }
+    mock_soccer.return_value = {"matches": []}
+
+    count = sync_recent(db, nba_api_key="a", football_api_key="b")
+
+    assert count == 1
+    assert db.query(Match).count() == 1
