@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from app.db import Base, get_engine, get_session_factory
 from app.main import app, get_artifact_dir, get_db
+from app.rate_limit import RateLimiter
 
 
 @pytest.fixture
@@ -50,3 +51,16 @@ def test_chat_returns_answer_from_analyst(mock_answer, client_with_db):
     args = mock_answer.call_args.args
     assert args[2] == "nba"
     assert args[4] == "Which match has the highest confidence?"
+
+
+@patch("app.routers.chat.answer_question", return_value="ok")
+def test_chat_429_after_exceeding_the_rate_limit(mock_answer, client_with_db):
+    with (
+        patch("app.rate_limit.chat_rate_limiter", RateLimiter(max_requests=1, window_seconds=60)),
+        patch("app.routers.chat.get_settings", return_value=SimpleNamespace(openai_api_key="fake-key")),
+    ):
+        first = client_with_db.post("/chat", json={"sport": "nba", "question": "Q1"})
+        second = client_with_db.post("/chat", json={"sport": "nba", "question": "Q2"})
+
+    assert first.status_code == 200
+    assert second.status_code == 429

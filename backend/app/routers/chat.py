@@ -5,12 +5,13 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.main import get_artifact_dir, get_db
 from app.ml.analyst import answer_question
+from app.rate_limit import rate_limit_chat
 from app.schemas import ChatRequest, ChatResponse
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-@router.post("", response_model=ChatResponse)
+@router.post("", response_model=ChatResponse, dependencies=[Depends(rate_limit_chat)])
 def post_chat(
     body: ChatRequest,
     db: Session = Depends(get_db),
