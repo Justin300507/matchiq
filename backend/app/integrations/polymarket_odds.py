@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from app.integrations.polymarket_client import search_events
+from app.utils.name_matching import names_match
 
 # Polymarket creates a match's markets close to kickoff, and only for a
 # subset of leagues/fixtures -- most calls to find_match_odds() will
@@ -21,11 +22,6 @@ class MarketOdds:
     away_decimal_odds: float
 
 
-def _names_match(name: str, candidate: str) -> bool:
-    name, candidate = name.lower(), candidate.lower()
-    return name in candidate or candidate in name
-
-
 def _is_core_match_event(title: str) -> bool:
     """Polymarket also creates sibling events for the same fixture
     ('<home> vs. <away> - Halftime Result', '... - Exact Score', etc.) --
@@ -41,8 +37,8 @@ def _event_matches_teams(event: dict, home_team: str, away_team: str) -> bool:
     if not _is_core_match_event(title):
         return False
     home_part, away_part = title.split(" vs. ", 1)
-    return (_names_match(home_team, home_part) and _names_match(away_team, away_part)) or (
-        _names_match(home_team, away_part) and _names_match(away_team, home_part)
+    return (names_match(home_team, home_part) and names_match(away_team, away_part)) or (
+        names_match(home_team, away_part) and names_match(away_team, home_part)
     )
 
 
@@ -106,9 +102,9 @@ def find_match_odds(home_team: str, away_team: str, match_date: datetime) -> Mar
             continue
         if "draw" in question.lower():
             draw_prob = prob
-        elif _names_match(home_team, question):
+        elif names_match(home_team, question):
             home_prob = prob
-        elif _names_match(away_team, question):
+        elif names_match(away_team, question):
             away_prob = prob
 
     home_odds = _decimal_odds_from_prob(home_prob)
