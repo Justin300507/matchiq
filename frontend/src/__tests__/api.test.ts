@@ -4,6 +4,7 @@ import {
   askAnalyst,
   fetchAccuracy,
   fetchExplanation,
+  fetchMarketOdds,
   fetchMatchContext,
   fetchPrediction,
   fetchSimulation,
@@ -15,6 +16,7 @@ import type {
   BacktestOut,
   ChatResponse,
   ExplanationOut,
+  MarketOddsOut,
   MatchContextOut,
   PredictionOut,
   SimulationOut,
@@ -116,6 +118,35 @@ describe("fetchMatchContext", () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 404 }) as unknown as typeof fetch;
 
     await expect(fetchMatchContext(42)).rejects.toThrow();
+  });
+});
+
+describe("fetchMarketOdds", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("calls the predictions/{id}/market-odds endpoint", async () => {
+    const mockData: MarketOddsOut = {
+      available: true, source: "Polymarket", event_title: "Arsenal vs. Chelsea",
+      event_url: "https://polymarket.com/event/arsenal-vs-chelsea",
+      home_decimal_odds: 2.1, draw_decimal_odds: 3.3, away_decimal_odds: 3.8,
+    };
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => mockData,
+    }) as unknown as typeof fetch;
+
+    const result = await fetchMarketOdds(42);
+
+    expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining("/predictions/42/market-odds"));
+    expect(result).toEqual(mockData);
+  });
+
+  it("throws when the response is not ok", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
+
+    await expect(fetchMarketOdds(42)).rejects.toThrow();
   });
 });
 

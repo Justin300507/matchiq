@@ -2,6 +2,7 @@ import type {
   BacktestOut,
   ChatResponse,
   ExplanationOut,
+  MarketOddsOut,
   MatchContextOut,
   PredictionOut,
   SimulationOut,
@@ -80,6 +81,14 @@ export async function fetchTeamProfile(teamId: number): Promise<TeamProfileOut> 
   const response = await fetch(`${API_BASE_URL}/teams/${teamId}/profile`);
   if (!response.ok) {
     throw new Error(`Failed to fetch team profile: ${response.status}`);
+  }
+  return response.json();
+}
+
+export async function fetchMarketOdds(gameId: number): Promise<MarketOddsOut> {
+  const response = await fetch(`${API_BASE_URL}/predictions/${gameId}/market-odds`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch market odds: ${response.status}`);
   }
   return response.json();
 }

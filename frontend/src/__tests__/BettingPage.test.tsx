@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BettingPage } from "../pages/BettingPage";
 import * as api from "../api";
-import type { PredictionOut } from "../types";
+import type { MarketOddsOut, PredictionOut } from "../types";
 
 const nbaMatch: PredictionOut = {
   game_id: 1, sport: "nba", league: "NBA", date: "2026-02-01T19:00:00Z",
@@ -13,6 +13,11 @@ const nbaMatch: PredictionOut = {
   predicted_home_score: 100, predicted_away_score: 99, model_confidence: "Medium",
 };
 
+const unavailableOdds: MarketOddsOut = {
+  available: false, source: null, event_title: null, event_url: null,
+  home_decimal_odds: null, draw_decimal_odds: null, away_decimal_odds: null,
+};
+
 describe("BettingPage", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -20,12 +25,41 @@ describe("BettingPage", () => {
 
   it("shows the no-fabricated-odds disclaimer", async () => {
     vi.spyOn(api, "fetchUpcomingPredictions").mockResolvedValue([nbaMatch]);
+    vi.spyOn(api, "fetchMarketOdds").mockResolvedValue(unavailableOdds);
     render(<BettingPage />);
-    await waitFor(() => expect(screen.getByText(/doesn't fetch, store, or invent/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/either fetched live from/i)).toBeInTheDocument());
+  });
+
+  it("shows a message when no Polymarket market is found for the selected match", async () => {
+    vi.spyOn(api, "fetchUpcomingPredictions").mockResolvedValue([nbaMatch]);
+    vi.spyOn(api, "fetchMarketOdds").mockResolvedValue(unavailableOdds);
+    render(<BettingPage />);
+
+    await waitFor(() => expect(screen.getByText(/no live polymarket market found/i)).toBeInTheDocument());
+  });
+
+  it("shows fetched Polymarket odds and fills the odds input when used", async () => {
+    vi.spyOn(api, "fetchUpcomingPredictions").mockResolvedValue([nbaMatch]);
+    vi.spyOn(api, "fetchMarketOdds").mockResolvedValue({
+      available: true, source: "Polymarket", event_title: "Lakers vs. Celtics",
+      event_url: "https://polymarket.com/event/lakers-vs-celtics",
+      home_decimal_odds: 2.5, draw_decimal_odds: null, away_decimal_odds: 1.8,
+    });
+    render(<BettingPage />);
+
+    await waitFor(() => expect(screen.getByText(/polymarket: home 2.50/i)).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: /view on polymarket/i })).toHaveAttribute(
+      "href", "https://polymarket.com/event/lakers-vs-celtics",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /use these odds for home/i }));
+
+    expect(screen.getByLabelText(/decimal odds/i)).toHaveValue(2.5);
   });
 
   it("adds a leg and computes edge/EV/Kelly against user-entered odds", async () => {
     vi.spyOn(api, "fetchUpcomingPredictions").mockResolvedValue([nbaMatch]);
+    vi.spyOn(api, "fetchMarketOdds").mockResolvedValue(unavailableOdds);
     render(<BettingPage />);
 
     await waitFor(() => expect(screen.getByText("Lakers vs Celtics")).toBeInTheDocument());
@@ -40,6 +74,7 @@ describe("BettingPage", () => {
 
   it("rejects invalid odds", async () => {
     vi.spyOn(api, "fetchUpcomingPredictions").mockResolvedValue([nbaMatch]);
+    vi.spyOn(api, "fetchMarketOdds").mockResolvedValue(unavailableOdds);
     render(<BettingPage />);
 
     await waitFor(() => expect(screen.getByText("Lakers vs Celtics")).toBeInTheDocument());
@@ -57,6 +92,7 @@ describe("BettingPage", () => {
       away_team: { id: 4, name: "Suns", league: "NBA" },
     };
     vi.spyOn(api, "fetchUpcomingPredictions").mockResolvedValue([nbaMatch, secondMatch]);
+    vi.spyOn(api, "fetchMarketOdds").mockResolvedValue(unavailableOdds);
     render(<BettingPage />);
 
     await waitFor(() => expect(screen.getByText("Lakers vs Celtics")).toBeInTheDocument());

@@ -192,6 +192,60 @@ def test_get_match_context_does_not_require_a_trained_model(client_with_db):
     assert response.status_code == 200
 
 
+@patch("app.routers.predictions.find_match_odds")
+def test_get_market_odds_returns_odds_when_a_market_is_found(mock_find, client_with_db):
+    from app.integrations.polymarket_odds import MarketOdds
+
+    client, match = client_with_db
+    mock_find.return_value = MarketOdds(
+        source="Polymarket", event_title="Lakers vs. Celtics",
+        event_url="https://polymarket.com/event/lakers-vs-celtics",
+        home_decimal_odds=2.5, draw_decimal_odds=None, away_decimal_odds=1.8,
+    )
+
+    response = client.get(f"/predictions/{match.id}/market-odds")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["available"] is True
+    assert body["source"] == "Polymarket"
+    assert body["home_decimal_odds"] == 2.5
+    assert body["draw_decimal_odds"] is None
+
+
+@patch("app.routers.predictions.find_match_odds")
+def test_get_market_odds_returns_unavailable_when_no_market_is_found(mock_find, client_with_db):
+    client, match = client_with_db
+    mock_find.return_value = None
+
+    response = client.get(f"/predictions/{match.id}/market-odds")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "available": False, "source": None, "event_title": None, "event_url": None,
+        "home_decimal_odds": None, "draw_decimal_odds": None, "away_decimal_odds": None,
+    }
+
+
+@patch("app.routers.predictions.find_match_odds")
+def test_get_market_odds_returns_unavailable_on_network_error(mock_find, client_with_db):
+    import requests
+
+    client, match = client_with_db
+    mock_find.side_effect = requests.exceptions.ConnectionError("boom")
+
+    response = client.get(f"/predictions/{match.id}/market-odds")
+
+    assert response.status_code == 200
+    assert response.json()["available"] is False
+
+
+def test_get_market_odds_404_for_unknown_id(client_with_db):
+    client, _ = client_with_db
+    response = client.get("/predictions/999999/market-odds")
+    assert response.status_code == 404
+
+
 @patch("app.routers.predictions.load_latest_artifact")
 @patch("app.routers.predictions.simulate_counterfactual")
 def test_get_whatif_returns_original_and_counterfactual(mock_counterfactual, mock_load, client_with_db):

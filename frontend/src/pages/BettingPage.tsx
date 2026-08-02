@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { fetchUpcomingPredictions } from "../api";
+import { fetchMarketOdds, fetchUpcomingPredictions } from "../api";
 import { LEAGUE_TABS, type LeagueTab } from "../leagueTabs";
 import { combineLegs, edgePct, expectedValuePct, impliedProbability, kellyFraction } from "../lib/betting";
-import type { PredictionOut } from "../types";
+import type { MarketOddsOut, PredictionOut } from "../types";
 
 type Outcome = "home" | "draw" | "away";
 
@@ -25,6 +25,12 @@ function outcomeProb(prediction: PredictionOut, outcome: Outcome): number {
   return prediction.draw_prob ?? 0;
 }
 
+function oddsForOutcome(marketOdds: MarketOddsOut, outcome: Outcome): number | null {
+  if (outcome === "home") return marketOdds.home_decimal_odds;
+  if (outcome === "away") return marketOdds.away_decimal_odds;
+  return marketOdds.draw_decimal_odds;
+}
+
 export function BettingPage() {
   const [activeTab, setActiveTab] = useState<LeagueTab>(LEAGUE_TABS[0]);
   const [matches, setMatches] = useState<PredictionOut[]>([]);
@@ -33,6 +39,7 @@ export function BettingPage() {
   const [oddsInput, setOddsInput] = useState("2.00");
   const [legs, setLegs] = useState<Leg[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [marketOdds, setMarketOdds] = useState<MarketOddsOut | null>(null);
 
   useEffect(() => {
     setOutcome("home");
@@ -43,6 +50,16 @@ export function BettingPage() {
       })
       .catch(() => setMatches([]));
   }, [activeTab]);
+
+  useEffect(() => {
+    setMarketOdds(null);
+    if (selectedGameId === null) {
+      return;
+    }
+    fetchMarketOdds(selectedGameId)
+      .then(setMarketOdds)
+      .catch(() => setMarketOdds(null));
+  }, [selectedGameId]);
 
   const selectedMatch = matches.find((m) => m.game_id === selectedGameId) ?? null;
 
@@ -83,10 +100,12 @@ export function BettingPage() {
     <div>
       <h1 className="text-xl font-bold">Betting Tools</h1>
       <p className="mt-2 max-w-2xl text-sm text-gray-600">
-        This page compares MatchIQ's real model probabilities against odds you enter yourself — MatchIQ doesn't
-        fetch, store, or invent bookmaker odds. Nothing here is a prediction of profit or a recommendation to bet;
-        it's simply where our model's probability estimate differs from the odds you supply. The full-Kelly stake
-        shown is the theoretical aggressive maximum — most practitioners bet a fraction of it.
+        This page compares MatchIQ's real model probabilities against real odds — either fetched live from
+        Polymarket's public prediction markets when one exists for a match, or entered manually for anything else.
+        Polymarket only covers a subset of fixtures, so "no market found" is expected for most matches, not a bug.
+        Nothing here is a prediction of profit or a recommendation to bet; it's simply where our model's
+        probability estimate differs from the market's. The full-Kelly stake shown is the theoretical aggressive
+        maximum — most practitioners bet a fraction of it.
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -149,6 +168,47 @@ export function BettingPage() {
           </button>
         </div>
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+
+        <div className="mt-3 border-t border-gray-200 pt-3 text-xs">
+          {marketOdds?.available ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-gray-500">
+                Polymarket: Home {marketOdds.home_decimal_odds?.toFixed(2)}
+                {marketOdds.draw_decimal_odds !== null && ` · Draw ${marketOdds.draw_decimal_odds.toFixed(2)}`}
+                {" · Away "}
+                {marketOdds.away_decimal_odds?.toFixed(2)}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  const odds = oddsForOutcome(marketOdds, outcome);
+                  if (odds !== null) {
+                    setOddsInput(String(odds));
+                  }
+                }}
+                disabled={oddsForOutcome(marketOdds, outcome) === null}
+                className="rounded bg-gray-200 px-2 py-0.5 font-medium text-gray-700 hover:bg-gray-300 disabled:opacity-50"
+              >
+                Use these odds for {outcomeLabel(outcome)}
+              </button>
+              {marketOdds.event_url && (
+                <a
+                  href={marketOdds.event_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-blue-600 hover:underline"
+                >
+                  View on Polymarket
+                </a>
+              )}
+            </div>
+          ) : (
+            <span className="text-gray-400">
+              No live Polymarket market found for this match — Polymarket only covers a subset of fixtures, so this
+              is expected for most matches. Enter odds from elsewhere manually.
+            </span>
+          )}
+        </div>
       </div>
 
       {legs.length > 0 && (

@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+import requests
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
@@ -7,6 +8,7 @@ from app.features.build_features import (
     compute_features,
     compute_features_bulk,
 )
+from app.integrations.polymarket_odds import find_match_odds
 from app.main import get_artifact_dir, get_db
 from app.ml.counterfactual import simulate_counterfactual
 from app.ml.explain import explain_prediction
@@ -22,6 +24,7 @@ from app.models_db import Match
 from app.schemas import (
     ExplanationFactorOut,
     ExplanationOut,
+    MarketOddsOut,
     MatchContextOut,
     PredictionOut,
     PredictionSummaryOut,
@@ -222,4 +225,31 @@ def get_match_context(game_id: int, db: Session = Depends(get_db)):
         home_recent_form=[_to_recent_result_out(r) for r in context.home_recent_form],
         away_recent_form=[_to_recent_result_out(r) for r in context.away_recent_form],
         head_to_head=[_to_recent_result_out(r) for r in context.head_to_head],
+    )
+
+
+@router.get("/{game_id}/market-odds", response_model=MarketOddsOut)
+def get_market_odds(game_id: int, db: Session = Depends(get_db)):
+    match = db.query(Match).filter(Match.id == game_id).one_or_none()
+    if match is None:
+        raise HTTPException(status_code=404, detail="Game not found")
+
+    try:
+        odds = find_match_odds(match.home_team.name, match.away_team.name, match.date)
+    except requests.exceptions.RequestException:
+        # A transient failure to reach Polymarket looks the same to the
+        # caller as "no market found" -- neither is worth a 500.
+        return MarketOddsOut(available=False)
+
+    if odds is None:
+        return MarketOddsOut(available=False)
+
+    return MarketOddsOut(
+        available=True,
+        source=odds.source,
+        event_title=odds.event_title,
+        event_url=odds.event_url,
+        home_decimal_odds=odds.home_decimal_odds,
+        draw_decimal_odds=odds.draw_decimal_odds,
+        away_decimal_odds=odds.away_decimal_odds,
     )

@@ -125,6 +125,16 @@ class TeamProfileOut(BaseModel):
     elo_rating: float
 
 
+class MarketOddsOut(BaseModel):
+    available: bool
+    source: str | None = None
+    event_title: str | None = None
+    event_url: str | None = None
+    home_decimal_odds: float | None = None
+    draw_decimal_odds: float | None = None
+    away_decimal_odds: float | None = None
+
+
 class ChatRequest(BaseModel):
     sport: str
     league: str | None = None

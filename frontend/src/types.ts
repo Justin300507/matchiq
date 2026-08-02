@@ -120,3 +120,13 @@ export interface TeamProfileOut {
 export interface ChatResponse {
   answer: string;
 }
+
+export interface MarketOddsOut {
+  available: boolean;
+  source: string | null;
+  event_title: string | null;
+  event_url: string | null;
+  home_decimal_odds: number | null;
+  draw_decimal_odds: number | null;
+  away_decimal_odds: number | null;
+}
