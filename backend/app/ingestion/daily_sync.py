@@ -47,7 +47,7 @@ def sync_recent(db: Session, nba_api_key: str, football_api_key: str, days_back:
                 upsert_game(db, normalize_soccer_game(raw, league))
                 count += 1
             except Exception:
-                logger.warning("Skipping unparseable soccer match %r", raw.get("id"), exc_info=True)
+                logger.warning("Skipping unparseable football match %r", raw.get("id"), exc_info=True)
                 db.rollback()
 
     return count

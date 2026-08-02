@@ -36,7 +36,7 @@ describe("GameCard", () => {
   });
 
   it("renders draw probability only when present", () => {
-    render(<MemoryRouter><GameCard prediction={{ ...basePrediction, sport: "soccer", draw_prob: 0.25, home_win_prob: 0.55, away_win_prob: 0.2 }} /></MemoryRouter>);
+    render(<MemoryRouter><GameCard prediction={{ ...basePrediction, sport: "football", draw_prob: 0.25, home_win_prob: 0.55, away_win_prob: 0.2 }} /></MemoryRouter>);
     expect(screen.getByText("25%")).toBeInTheDocument();
   });
 

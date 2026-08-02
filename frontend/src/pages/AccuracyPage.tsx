@@ -81,7 +81,7 @@ function ReliabilityDiagram({ bins }: { bins: BacktestOut["reliability_bins"] })
   );
 }
 
-function SportAccuracy({ sport }: { sport: "nba" | "soccer" }) {
+function SportAccuracy({ sport }: { sport: "nba" | "football" }) {
   const [backtest, setBacktest] = useState<BacktestOut | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -137,8 +137,8 @@ export function AccuracyPage() {
       </p>
 
       <div className="mt-6 space-y-8">
-        <SportAccuracy sport="nba" />
-        <SportAccuracy sport="soccer" />
+        {/* NBA is temporarily removed from the UI — kept in the backend and API. */}
+        <SportAccuracy sport="football" />
       </div>
     </div>
   );

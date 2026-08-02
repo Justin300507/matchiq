@@ -20,7 +20,7 @@ export class ApiError extends Error {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
-export async function fetchUpcomingPredictions(sport: "nba" | "soccer", league?: string): Promise<PredictionOut[]> {
+export async function fetchUpcomingPredictions(sport: "nba" | "football", league?: string): Promise<PredictionOut[]> {
   const params = new URLSearchParams({ sport });
   if (league) {
     params.set("league", league);
@@ -84,7 +84,7 @@ export async function fetchTeamProfile(teamId: number): Promise<TeamProfileOut> 
   return response.json();
 }
 
-export async function fetchAccuracy(sport: "nba" | "soccer"): Promise<BacktestOut> {
+export async function fetchAccuracy(sport: "nba" | "football"): Promise<BacktestOut> {
   const response = await fetch(`${API_BASE_URL}/accuracy?sport=${sport}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch accuracy: ${response.status}`);
@@ -92,7 +92,7 @@ export async function fetchAccuracy(sport: "nba" | "soccer"): Promise<BacktestOu
   return response.json();
 }
 
-export async function askAnalyst(sport: "nba" | "soccer", league: string | undefined, question: string): Promise<ChatResponse> {
+export async function askAnalyst(sport: "nba" | "football", league: string | undefined, question: string): Promise<ChatResponse> {
   const response = await fetch(`${API_BASE_URL}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -37,7 +37,7 @@ describe("ChatPanel", () => {
   it("shows a not-configured message on a 503 response", async () => {
     vi.spyOn(api, "askAnalyst").mockRejectedValue(new api.ApiError("Failed to get an answer: 503", 503));
 
-    render(<ChatPanel sport="soccer" league="EPL" />);
+    render(<ChatPanel sport="football" league="EPL" />);
     fireEvent.change(screen.getByPlaceholderText(/ask a question/i), { target: { value: "Any picks?" } });
     fireEvent.click(screen.getByRole("button", { name: /ask/i }));
 

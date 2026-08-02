@@ -3,7 +3,7 @@ import { fetchUpcomingPredictions } from "../api";
 import type { PredictionOut } from "../types";
 import { GameCard } from "./GameCard";
 
-export function GameList({ sport, league }: { sport: "nba" | "soccer"; league?: string }) {
+export function GameList({ sport, league }: { sport: "nba" | "football"; league?: string }) {
   const [predictions, setPredictions] = useState<PredictionOut[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 

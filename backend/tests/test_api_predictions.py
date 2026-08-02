@@ -236,8 +236,8 @@ def test_upcoming_mixes_leagues_instead_of_one_league_crowding_out_others(mock_p
     Base.metadata.create_all(engine)
     db = get_session_factory(engine)()
 
-    home = Team(external_id="1", sport="soccer", league="La Liga", name="Alaves")
-    away = Team(external_id="2", sport="soccer", league="La Liga", name="Getafe")
+    home = Team(external_id="1", sport="football", league="La Liga", name="Alaves")
+    away = Team(external_id="2", sport="football", league="La Liga", name="Getafe")
     db.add_all([home, away])
     db.commit()
 
@@ -246,18 +246,18 @@ def test_upcoming_mixes_leagues_instead_of_one_league_crowding_out_others(mock_p
     # different dates.
     for i in range(15):
         db.add(Match(
-            external_id=f"la-liga-{i}", sport="soccer", league="La Liga",
+            external_id=f"la-liga-{i}", sport="football", league="La Liga",
             date=datetime.utcnow() + timedelta(days=1, hours=i),
             home_team_id=home.id, away_team_id=away.id,
             home_score=None, away_score=None, status="scheduled",
         ))
 
-    bundesliga_home = Team(external_id="3", sport="soccer", league="Bundesliga", name="Bayern")
-    bundesliga_away = Team(external_id="4", sport="soccer", league="Bundesliga", name="Dortmund")
+    bundesliga_home = Team(external_id="3", sport="football", league="Bundesliga", name="Bayern")
+    bundesliga_away = Team(external_id="4", sport="football", league="Bundesliga", name="Dortmund")
     db.add_all([bundesliga_home, bundesliga_away])
     db.commit()
     db.add(Match(
-        external_id="bundesliga-1", sport="soccer", league="Bundesliga",
+        external_id="bundesliga-1", sport="football", league="Bundesliga",
         date=datetime.utcnow() + timedelta(days=20),
         home_team_id=bundesliga_home.id, away_team_id=bundesliga_away.id,
         home_score=None, away_score=None, status="scheduled",
@@ -270,7 +270,7 @@ def test_upcoming_mixes_leagues_instead_of_one_league_crowding_out_others(mock_p
     mock_predict.return_value = Prediction(0.5, 0.25, 0.25, 1.5, 1.0, "Medium")
 
     client = TestClient(app)
-    response = client.get("/predictions/upcoming?sport=soccer")
+    response = client.get("/predictions/upcoming?sport=football")
 
     app.dependency_overrides.clear()
 
@@ -287,21 +287,21 @@ def test_upcoming_filters_to_one_league_when_requested(mock_predict, mock_load, 
     Base.metadata.create_all(engine)
     db = get_session_factory(engine)()
 
-    la_liga_home = Team(external_id="1", sport="soccer", league="La Liga", name="Alaves")
-    la_liga_away = Team(external_id="2", sport="soccer", league="La Liga", name="Getafe")
-    bundesliga_home = Team(external_id="3", sport="soccer", league="Bundesliga", name="Bayern")
-    bundesliga_away = Team(external_id="4", sport="soccer", league="Bundesliga", name="Dortmund")
+    la_liga_home = Team(external_id="1", sport="football", league="La Liga", name="Alaves")
+    la_liga_away = Team(external_id="2", sport="football", league="La Liga", name="Getafe")
+    bundesliga_home = Team(external_id="3", sport="football", league="Bundesliga", name="Bayern")
+    bundesliga_away = Team(external_id="4", sport="football", league="Bundesliga", name="Dortmund")
     db.add_all([la_liga_home, la_liga_away, bundesliga_home, bundesliga_away])
     db.commit()
 
     db.add(Match(
-        external_id="la-liga-1", sport="soccer", league="La Liga",
+        external_id="la-liga-1", sport="football", league="La Liga",
         date=datetime.utcnow() + timedelta(days=1),
         home_team_id=la_liga_home.id, away_team_id=la_liga_away.id,
         home_score=None, away_score=None, status="scheduled",
     ))
     db.add(Match(
-        external_id="bundesliga-1", sport="soccer", league="Bundesliga",
+        external_id="bundesliga-1", sport="football", league="Bundesliga",
         date=datetime.utcnow() + timedelta(days=1),
         home_team_id=bundesliga_home.id, away_team_id=bundesliga_away.id,
         home_score=None, away_score=None, status="scheduled",
@@ -314,7 +314,7 @@ def test_upcoming_filters_to_one_league_when_requested(mock_predict, mock_load, 
     mock_predict.return_value = Prediction(0.5, 0.25, 0.25, 1.5, 1.0, "Medium")
 
     client = TestClient(app)
-    response = client.get("/predictions/upcoming?sport=soccer&league=Bundesliga")
+    response = client.get("/predictions/upcoming?sport=football&league=Bundesliga")
 
     app.dependency_overrides.clear()
 

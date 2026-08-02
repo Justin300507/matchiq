@@ -46,7 +46,7 @@ def backfill_soccer(db: Session, api_key: str, leagues: list[str], seasons: list
                     upsert_game(db, normalize_soccer_game(raw, league))
                     count += 1
                 except Exception:
-                    logger.warning("Skipping unparseable soccer match %r", raw.get("id"), exc_info=True)
+                    logger.warning("Skipping unparseable football match %r", raw.get("id"), exc_info=True)
                     db.rollback()
     return count
 
@@ -64,4 +64,4 @@ if __name__ == "__main__":
 
     nba_count = backfill_nba(db, settings.nba_api_key, args.nba_seasons)
     soccer_count = backfill_soccer(db, settings.football_data_api_key, list(LEAGUE_CODES.keys()), args.soccer_seasons)
-    print(f"Backfilled {nba_count} NBA games and {soccer_count} soccer games")
+    print(f"Backfilled {nba_count} NBA games and {soccer_count} football games")

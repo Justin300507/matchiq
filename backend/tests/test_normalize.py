@@ -48,7 +48,7 @@ def test_normalize_soccer_game_maps_fields():
     }
     game = normalize_soccer_game(raw, league="EPL")
     assert game.external_id == "777"
-    assert game.sport == "soccer"
+    assert game.sport == "football"
     assert game.league == "EPL"
     assert game.home_team_name == "Arsenal"
     assert game.away_team_name == "Chelsea"
@@ -99,7 +99,7 @@ def test_normalize_api_football_fixture_maps_fields_with_prefixed_ids():
     }
     game = normalize_api_football_fixture(raw)
     assert game.external_id == "af-12345"
-    assert game.sport == "soccer"
+    assert game.sport == "football"
     assert game.league == "Champions League"
     assert game.home_team_external_id == "af-611"
     assert game.home_team_name == "Sturm Graz"

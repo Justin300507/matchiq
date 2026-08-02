@@ -52,7 +52,7 @@ def normalize_soccer_game(raw: dict, league: str) -> RawGame:
     full_time = raw["score"]["fullTime"]
     return RawGame(
         external_id=str(raw["id"]),
-        sport="soccer",
+        sport="football",
         league=league,
         date=datetime.fromisoformat(raw["utcDate"].replace("Z", "+00:00")),
         home_team_external_id=str(raw["homeTeam"]["id"]),
@@ -87,7 +87,7 @@ def normalize_api_football_fixture(raw: dict) -> RawGame:
     goals = raw["goals"]
     return RawGame(
         external_id=f"af-{fixture['id']}",
-        sport="soccer",
+        sport="football",
         league="Champions League",
         date=datetime.fromisoformat(fixture["date"]),
         home_team_external_id=f"af-{teams['home']['id']}",

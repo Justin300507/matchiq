@@ -3,7 +3,7 @@ from sklearn.metrics import accuracy_score, brier_score_loss, log_loss
 
 
 def naive_home_favorite_probs(n: int, sport: str) -> list[dict]:
-    if sport == "soccer":
+    if sport == "football":
         return [{"H": 1.0, "D": 0.0, "A": 0.0} for _ in range(n)]
     return [{"H": 1.0, "A": 0.0} for _ in range(n)]
 

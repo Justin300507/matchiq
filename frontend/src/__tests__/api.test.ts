@@ -44,7 +44,7 @@ describe("fetchUpcomingPredictions", () => {
   it("throws when the response is not ok", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 503 }) as unknown as typeof fetch;
 
-    await expect(fetchUpcomingPredictions("soccer")).rejects.toThrow();
+    await expect(fetchUpcomingPredictions("football")).rejects.toThrow();
   });
 
   it("includes the league query param when given", async () => {
@@ -54,7 +54,7 @@ describe("fetchUpcomingPredictions", () => {
       json: async () => mockData,
     }) as unknown as typeof fetch;
 
-    await fetchUpcomingPredictions("soccer", "Bundesliga");
+    await fetchUpcomingPredictions("football", "Bundesliga");
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining("league=Bundesliga"),

@@ -125,7 +125,7 @@ export function BettingPage() {
               onChange={(e) => setOutcome(e.target.value as Outcome)}
             >
               <option value="home">Home</option>
-              {activeTab.sport === "soccer" && <option value="draw">Draw</option>}
+              {activeTab.sport === "football" && <option value="draw">Draw</option>}
               <option value="away">Away</option>
             </select>
           </label>

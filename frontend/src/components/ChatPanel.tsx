@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ApiError, askAnalyst } from "../api";
 
-export function ChatPanel({ sport, league }: { sport: "nba" | "soccer"; league?: string }) {
+export function ChatPanel({ sport, league }: { sport: "nba" | "football"; league?: string }) {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

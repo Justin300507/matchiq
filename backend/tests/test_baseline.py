@@ -9,7 +9,7 @@ def test_naive_home_favorite_probs_nba():
 
 
 def test_naive_home_favorite_probs_soccer():
-    probs = naive_home_favorite_probs(2, sport="soccer")
+    probs = naive_home_favorite_probs(2, sport="football")
     assert probs == [{"H": 1.0, "D": 0.0, "A": 0.0}] * 2
 
 

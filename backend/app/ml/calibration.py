@@ -71,7 +71,7 @@ def _compute_reliability_bins(
     # "Confidence calibration": bin every prediction by how confident the
     # model was in its top pick, then check what fraction of predictions in
     # that bin were actually correct. Works the same way for a 2-way (NBA)
-    # or 3-way (soccer) model, unlike a binary-only reliability curve.
+    # or 3-way (football) model, unlike a binary-only reliability curve.
     confidences = prob_matrix[np.arange(len(prob_matrix)), predicted_idx]
     correct = np.array([1.0 if actual == pred else 0.0 for actual, pred in zip(y_true, predicted_labels)])
 

@@ -6,7 +6,7 @@ export interface TeamOut {
 
 export interface PredictionOut {
   game_id: number;
-  sport: "nba" | "soccer";
+  sport: "nba" | "football";
   league: string;
   date: string;
   home_team: TeamOut;

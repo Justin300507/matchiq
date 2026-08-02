@@ -23,7 +23,7 @@ FEATURE_COLUMNS = [
 
 
 def _labels_for_sport(sport: str) -> list[str]:
-    return ["H", "D", "A"] if sport == "soccer" else ["H", "A"]
+    return ["H", "D", "A"] if sport == "football" else ["H", "A"]
 
 
 def beats_baseline(model_metrics: dict, baseline_metrics: dict) -> bool:
@@ -50,7 +50,7 @@ def train_sport_models(db: Session, sport: str, artifact_dir: Path) -> dict:
     y_train = train_df["result"].map({label: i for i, label in enumerate(labels)})
     y_test = test_df["result"]
 
-    classifier = XGBClassifier(n_estimators=100, max_depth=3, eval_metric="mlogloss" if sport == "soccer" else "logloss")
+    classifier = XGBClassifier(n_estimators=100, max_depth=3, eval_metric="mlogloss" if sport == "football" else "logloss")
     classifier.fit(X_train, y_train)
 
     regressor_home = XGBRegressor(n_estimators=100, max_depth=3)

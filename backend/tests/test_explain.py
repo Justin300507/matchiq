@@ -106,11 +106,11 @@ def test_explain_prediction_returns_all_seven_factors_for_binary_model(tmp_path:
 
 
 def test_explain_prediction_returns_all_seven_factors_for_multiclass_model(tmp_path: Path):
-    db, teams = make_db_with_synthetic_matches("soccer", "EPL", allow_draws=True, n_matches=200)
-    artifact = _train_and_save_artifact(db, "soccer", ["H", "D", "A"], tmp_path)
+    db, teams = make_db_with_synthetic_matches("football", "EPL", allow_draws=True, n_matches=200)
+    artifact = _train_and_save_artifact(db, "football", ["H", "D", "A"], tmp_path)
 
     target = Match(
-        external_id="target", sport="soccer", league="EPL",
+        external_id="target", sport="football", league="EPL",
         date=datetime(2025, 1, 1) + timedelta(days=210),
         home_team_id=teams[0].id, away_team_id=teams[1].id,
         home_score=None, away_score=None, status="scheduled",
