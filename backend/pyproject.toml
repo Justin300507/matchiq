@@ -1,0 +1,7 @@
+[tool.ruff.lint]
+# B008 (function-call-in-default-argument) is a false positive for FastAPI's
+# Depends(...) pattern, which is the framework's required, documented way to
+# declare a route dependency -- see the FastAPI docs' dependency injection
+# guide. Every FastAPI codebase either ignores this rule or accumulates
+# dozens of no-op warnings.
+ignore = ["B008"]

@@ -1,3 +1,4 @@
+from collections import defaultdict
 from dataclasses import dataclass
 
 import pandas as pd
@@ -63,6 +64,13 @@ def _rest_days(matches: list[Match], target_date) -> int:
     return (target_date - matches[0].date).days
 
 
+def _h2h_win_rate(matches: list[Match], home_id: int) -> float:
+    if not matches:
+        return 0.5
+    home_wins = sum(1 for m in matches if _did_team_win(m, home_id))
+    return home_wins / len(matches)
+
+
 def _h2h_home_win_rate(db: Session, sport: str, home_id: int, away_id: int, before_date) -> float:
     matches = (
         db.query(Match)
@@ -77,10 +85,7 @@ def _h2h_home_win_rate(db: Session, sport: str, home_id: int, away_id: int, befo
         )
         .all()
     )
-    if not matches:
-        return 0.5
-    home_wins = sum(1 for m in matches if _did_team_win(m, home_id))
-    return home_wins / len(matches)
+    return _h2h_win_rate(matches, home_id)
 
 
 def compute_features(db: Session, match: Match) -> MatchFeatures:
@@ -106,7 +111,21 @@ def _result(match: Match) -> str:
     return "D"
 
 
+def _recent_matches_before(ascending_matches: list[Match], before_date, limit: int) -> list[Match]:
+    # ascending_matches is already sorted oldest-to-newest, so the most
+    # recent `limit` matches before the cutoff are just its tail end.
+    # Reversed to match _team_matches_before's DB-side `order_by(desc())`,
+    # since _rest_days relies on matches[0] being the most recent.
+    filtered = [m for m in ascending_matches if m.date < before_date]
+    recent = filtered[-limit:] if limit else filtered
+    return list(reversed(recent))
+
+
 def build_training_dataframe(db: Session, sport: str) -> pd.DataFrame:
+    # One query for the whole sport, then compute every match's features
+    # from in-memory indices, instead of ~5 DB round trips per match. On a
+    # few thousand historical matches this is the difference between a
+    # sub-second response and a 60+ second one.
     matches = (
         db.query(Match)
         .filter(Match.sport == sport, Match.status == "final")
@@ -114,9 +133,37 @@ def build_training_dataframe(db: Session, sport: str) -> pd.DataFrame:
         .all()
     )
 
+    matches_by_team: dict[int, list[Match]] = defaultdict(list)
+    home_matches_by_team: dict[int, list[Match]] = defaultdict(list)
+    away_matches_by_team: dict[int, list[Match]] = defaultdict(list)
+    matches_by_pair: dict[frozenset[int], list[Match]] = defaultdict(list)
+
+    for match in matches:
+        matches_by_team[match.home_team_id].append(match)
+        matches_by_team[match.away_team_id].append(match)
+        home_matches_by_team[match.home_team_id].append(match)
+        away_matches_by_team[match.away_team_id].append(match)
+        matches_by_pair[frozenset((match.home_team_id, match.away_team_id))].append(match)
+
     rows = []
     for match in matches:
-        features = compute_features(db, match)
+        home_recent = _recent_matches_before(matches_by_team[match.home_team_id], match.date, limit=5)
+        away_recent = _recent_matches_before(matches_by_team[match.away_team_id], match.date, limit=5)
+        home_history = [m for m in home_matches_by_team[match.home_team_id] if m.date < match.date]
+        away_history = [m for m in away_matches_by_team[match.away_team_id] if m.date < match.date]
+        h2h_history = [
+            m for m in matches_by_pair[frozenset((match.home_team_id, match.away_team_id))] if m.date < match.date
+        ]
+
+        features = MatchFeatures(
+            home_form_last5=_form(home_recent, match.home_team_id),
+            away_form_last5=_form(away_recent, match.away_team_id),
+            home_win_rate_home=_form(home_history, match.home_team_id),
+            away_win_rate_away=_form(away_history, match.away_team_id),
+            h2h_home_win_rate=_h2h_win_rate(h2h_history, match.home_team_id),
+            home_rest_days=_rest_days(home_recent, match.date),
+            away_rest_days=_rest_days(away_recent, match.date),
+        )
         rows.append({
             **features.__dict__,
             "home_score": match.home_score,

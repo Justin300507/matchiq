@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.db import Base, get_engine, get_session_factory
 from app.ingestion.nba_client import fetch_games
-from app.ingestion.normalize import normalize_nba_game, normalize_soccer_game, upsert_game
+from app.ingestion.normalize import (
+    normalize_nba_game,
+    normalize_soccer_game,
+    upsert_game,
+)
 from app.ingestion.soccer_client import LEAGUE_CODES, fetch_matches
 
 logger = logging.getLogger(__name__)
