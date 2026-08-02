@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from openai import OpenAI
 from sqlalchemy.orm import Session
 
-from app.features.build_features import compute_features
+from app.features.build_features import compute_features_bulk
 from app.ml.predict import load_latest_artifact, predict_match
 from app.models_db import Match
 
@@ -43,10 +43,10 @@ def _build_match_context(db: Session, artifact_dir, sport: str, league: str | No
     if not matches:
         return "There are no upcoming matches currently loaded for this sport/league."
 
+    features_by_id = compute_features_bulk(db, sport, matches)
     lines = []
     for match in matches:
-        features = compute_features(db, match)
-        prediction = predict_match(artifact, features)
+        prediction = predict_match(artifact, features_by_id[match.id])
         draw_part = f", draw_win_prob={prediction.draw_prob:.2f}" if prediction.draw_prob is not None else ""
         lines.append(
             f"- {match.date.isoformat()} | {match.league} | "

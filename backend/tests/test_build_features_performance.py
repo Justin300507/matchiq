@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import event
 
 from app.db import Base, get_engine, get_session_factory
-from app.features.build_features import build_training_dataframe, compute_features
+from app.features.build_features import build_training_dataframe, compute_features, compute_features_bulk
 from app.models_db import Match, Team
 
 
@@ -72,3 +72,57 @@ def test_build_training_dataframe_issues_a_bounded_number_of_queries():
     # matches). The bulk path issues exactly one query for the match list;
     # a generous ceiling here still proves the N+1 pattern is gone.
     assert query_count <= 5, f"expected O(1) queries, got {query_count}"
+
+
+def _add_upcoming_matches(db, teams, n_upcoming=20, start_day=200):
+    upcoming = []
+    for i in range(n_upcoming):
+        home, away = random.sample(teams, 2)
+        match = Match(
+            external_id=f"upcoming{i}", sport="nba", league="NBA",
+            date=datetime(2025, 1, 1) + timedelta(days=start_day + i),
+            home_team_id=home.id, away_team_id=away.id,
+            home_score=None, away_score=None, status="scheduled",
+        )
+        db.add(match)
+        upcoming.append(match)
+    db.commit()
+    return upcoming
+
+
+def test_compute_features_bulk_matches_compute_features_for_upcoming_matches():
+    db, _engine = make_db_with_synthetic_matches(n_matches=150)
+    teams = db.query(Team).all()
+    upcoming = _add_upcoming_matches(db, teams)
+
+    bulk_features = compute_features_bulk(db, "nba", upcoming)
+
+    for match in upcoming:
+        assert bulk_features[match.id] == compute_features(db, match)
+
+
+def test_compute_features_bulk_issues_a_bounded_number_of_queries():
+    db, engine = make_db_with_synthetic_matches(n_matches=150)
+    teams = db.query(Team).all()
+    _add_upcoming_matches(db, teams, n_upcoming=30)
+
+    # Re-fetch fresh, unexpired objects right before the counted call --
+    # this mirrors the real endpoint, which queries the upcoming matches and
+    # immediately computes their features in the same request with no commit
+    # in between (a commit expires ORM objects, forcing a reload per
+    # attribute access on next use -- an artifact of re-using objects across
+    # a commit boundary in this test, not something the real request path
+    # does).
+    upcoming = db.query(Match).filter(Match.sport == "nba", Match.status == "scheduled").all()
+
+    features, query_count = _count_queries(engine, lambda: compute_features_bulk(db, "nba", upcoming))
+
+    assert len(features) == 30
+    # The per-match approach would issue ~5 queries per upcoming match
+    # (150+ for 30 matches, on top of whatever loaded the match list itself).
+    assert query_count <= 5, f"expected O(1) queries, got {query_count}"
+
+
+def test_compute_features_bulk_returns_empty_dict_for_no_targets():
+    db, _engine = make_db_with_synthetic_matches()
+    assert compute_features_bulk(db, "nba", []) == {}

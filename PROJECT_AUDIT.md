@@ -10,9 +10,11 @@ Codebase size at time of audit: ~1,980 lines of backend Python, ~1,350 lines of 
 
 | # | Finding | Priority | Impact | Difficulty | Status |
 |---|---|---|---|---|---|
-| 1 | N+1 query pattern in feature computation (`compute_features` issued ~5 DB queries per match; called once per row for every match in `build_training_dataframe`, which backs both model training and the `/accuracy` backtest) | High | High — measured 59s (NBA) / 68s (soccer) `/accuracy` response times before the fix | Medium | **Fixed** — see below |
+| 1 | N+1 query pattern in feature computation (`compute_features` issued ~5 DB queries per match; called once per row for every match in `build_training_dataframe` AND, separately, once per match in the live `/predictions/upcoming` list and the AI analyst's match context) | High | High — measured 59s (NBA) / 68s (soccer) `/accuracy`, and ~2s per `/predictions/upcoming` page load, before fixing | Medium | **Fixed** — see below |
+| 1b | Trained model artifacts (XGBoost classifier + 2 regressors) were re-deserialized from disk on every single request — ~0.9s each time, paid repeatedly since a match page fires 3+ of these requests | High | Directly caused the "every match takes so long to load" complaint | Low | **Fixed** — in-memory cache keyed by `(path, mtime)`, auto-invalidates on retrain |
+| 1c | Model inference called individually per match (3 XGBoost `.predict()`-family calls × up to 60 matches = 180 individual calls) instead of batched | Medium | ~0.4s of the `/predictions/upcoming` response was just per-call overhead from calling `.predict()` 180 times instead of 3 times | Low | **Fixed** — added `predict_batch()`, one call per model for the whole list |
 | 2 | No database indexes beyond the primary key and the `(sport, external_id)` unique constraint, despite `sport`/`status`/`date`/`home_team_id`/`away_team_id` being filtered on in every hot-path query | High | Invisible today on SQLite with a few thousand rows; will degrade badly on Postgres in production at real data volume | Low | Open |
-| 3 | `/accuracy` recomputes the entire backtest from scratch on every request, with no caching | Medium | Even after fix #1, each request still does real, non-trivial work (10.7s NBA / 4.4s soccer after the fix) | Low–Medium | Open |
+| 3 | `/accuracy` recomputes the entire backtest from scratch on every request, with no caching | Medium | Even after fix #1, each request still does real, non-trivial work (10.7s NBA / 4.4s football after fix #1; not yet re-measured against fixes #1b/#1c, which don't apply to this endpoint) | Low–Medium | Open |
 | 4 | No database migration tooling — schema changes apply via a bare `Base.metadata.create_all()` on startup | Medium | Fine for SQLite today; risky once Postgres holds real data and a column needs to change | Medium | Open |
 | 5 | Duplicate data-fetching boilerplate across 9 frontend files (`useState<T\|null>` + `useEffect` + `.then(setX)` + `.catch(setError)`, repeated verbatim in HomePage, MatchPage, TeamPage, AccuracyPage, BettingPage, ChatPanel, GameCard, GameList, SimulationPanel, WhatIfPanel) | Low–Medium | Maintainability tax on every new page | Medium | Open |
 | 6 | Light business logic living directly in route handlers (e.g. the per-league balancing logic in `predictions.py`'s `get_upcoming`) and in `BettingPage.tsx` (EV/Kelly math over already-fetched data) | Low | Low at current scale | N/A | **Not recommended to fix** — see note below |
@@ -57,6 +59,35 @@ ways:
 The remaining time is genuine computation (large historical dataset, in-memory feature building across many
 teams/matches), not further N+1 queries — reducing it further is finding #3 (caching the backtest result so this
 work only happens on retrain, not on every page load).
+
+The same N+1 pattern also existed on the **live** hot path — `/predictions/upcoming` (the home page's match list
+and the betting page's match dropdown) and the AI analyst's match-context builder both called `compute_features()`
+once per match in a loop. Fixed the same way via a new `compute_features_bulk()` that shares one history load and
+index across all target matches; verified with the same two-part correctness + query-count-listener test pattern
+(`test_compute_features_bulk_*`).
+
+## Fixes #1b and #1c in detail: artifact caching and batched inference
+
+Fixing the query pattern alone didn't fully explain user-reported slowness ("every match takes so long to load,
+including bets"), so this was measured further rather than assumed fixed:
+
+- **`load_latest_artifact()` deserialized the trained model from disk on every call** (~0.9s each time — confirmed
+  by direct timing, not estimated), and it's called on every predictions-related endpoint, including 3+ times per
+  match page. Fixed with an in-memory cache keyed by `(file path, mtime)` — a retrain changes the file's mtime and
+  is picked up automatically, no manual invalidation needed. Verified with tests asserting object identity across
+  repeat calls, and a fresh (non-cached) object after the underlying file changes.
+- **Model inference was called once per match** — for a 60-match upcoming list, that's 3 individual XGBoost
+  `.predict()`-family calls × 60 = 180 calls, each carrying real fixed overhead regardless of row count. Added
+  `predict_batch()`, which builds one DataFrame for the whole list and calls each model exactly once. Verified with
+  a test asserting `predict_proba`/`.predict()` mock call counts are 1, not N.
+
+**Measured before/after on the live server, real data, `/predictions/upcoming?sport=football&league=EPL`:**
+
+| Stage | Time |
+|---|---|
+| Before any of this round's fixes | ~2.07s |
+| After fixing the N+1 query pattern on this endpoint | ~1.0s |
+| After also caching the artifact and batching inference | ~0.3–0.5s |
 
 ## Explicitly not doing
 

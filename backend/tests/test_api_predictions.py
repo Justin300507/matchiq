@@ -40,11 +40,13 @@ def client_with_db(tmp_path):
 
 
 @patch("app.routers.predictions.load_latest_artifact")
-@patch("app.routers.predictions.predict_match")
+@patch("app.routers.predictions.predict_batch")
 def test_upcoming_returns_predictions_for_sport(mock_predict, mock_load, client_with_db):
     client, match = client_with_db
     mock_load.return_value = {"labels": ["H", "A"]}
-    mock_predict.return_value = Prediction(0.65, None, 0.35, 105.0, 99.0, "High")
+    mock_predict.side_effect = lambda artifact, features_list: [
+        Prediction(0.65, None, 0.35, 105.0, 99.0, "High") for _ in features_list
+    ]
 
     response = client.get("/predictions/upcoming?sport=nba")
 
@@ -230,7 +232,7 @@ def test_get_whatif_404_for_unknown_id(client_with_db):
 
 
 @patch("app.routers.predictions.load_latest_artifact")
-@patch("app.routers.predictions.predict_match")
+@patch("app.routers.predictions.predict_batch")
 def test_upcoming_mixes_leagues_instead_of_one_league_crowding_out_others(mock_predict, mock_load, tmp_path):
     engine = get_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
@@ -267,7 +269,9 @@ def test_upcoming_mixes_leagues_instead_of_one_league_crowding_out_others(mock_p
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_artifact_dir] = lambda: tmp_path
     mock_load.return_value = {"labels": ["H", "D", "A"]}
-    mock_predict.return_value = Prediction(0.5, 0.25, 0.25, 1.5, 1.0, "Medium")
+    mock_predict.side_effect = lambda artifact, features_list: [
+        Prediction(0.5, 0.25, 0.25, 1.5, 1.0, "Medium") for _ in features_list
+    ]
 
     client = TestClient(app)
     response = client.get("/predictions/upcoming?sport=football")
@@ -281,7 +285,7 @@ def test_upcoming_mixes_leagues_instead_of_one_league_crowding_out_others(mock_p
 
 
 @patch("app.routers.predictions.load_latest_artifact")
-@patch("app.routers.predictions.predict_match")
+@patch("app.routers.predictions.predict_batch")
 def test_upcoming_filters_to_one_league_when_requested(mock_predict, mock_load, tmp_path):
     engine = get_engine("sqlite:///:memory:")
     Base.metadata.create_all(engine)
@@ -311,7 +315,9 @@ def test_upcoming_filters_to_one_league_when_requested(mock_predict, mock_load, 
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_artifact_dir] = lambda: tmp_path
     mock_load.return_value = {"labels": ["H", "D", "A"]}
-    mock_predict.return_value = Prediction(0.5, 0.25, 0.25, 1.5, 1.0, "Medium")
+    mock_predict.side_effect = lambda artifact, features_list: [
+        Prediction(0.5, 0.25, 0.25, 1.5, 1.0, "Medium") for _ in features_list
+    ]
 
     client = TestClient(app)
     response = client.get("/predictions/upcoming?sport=football&league=Bundesliga")

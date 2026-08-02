@@ -3,12 +3,20 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from app.features.build_features import compute_features
+from app.features.build_features import (
+    compute_features,
+    compute_features_bulk,
+)
 from app.main import get_artifact_dir, get_db
 from app.ml.counterfactual import simulate_counterfactual
 from app.ml.explain import explain_prediction
 from app.ml.match_context import compute_match_context
-from app.ml.predict import Prediction, load_latest_artifact, predict_match
+from app.ml.predict import (
+    Prediction,
+    load_latest_artifact,
+    predict_batch,
+    predict_match,
+)
 from app.ml.simulate import simulate_match
 from app.models_db import Match
 from app.schemas import (
@@ -41,9 +49,7 @@ def _get_match_and_artifact(game_id: int, db: Session, artifact_dir) -> tuple[Ma
     return match, artifact
 
 
-def _to_prediction_out(match: Match, artifact: dict, db: Session) -> PredictionOut:
-    features = compute_features(db, match)
-    prediction = predict_match(artifact, features)
+def _to_prediction_out(match: Match, prediction: Prediction) -> PredictionOut:
     return PredictionOut(
         game_id=match.id,
         sport=match.sport,
@@ -102,13 +108,17 @@ def get_upcoming(
                 break
 
     selected = sorted(selected, key=lambda match: match.date)
-    return [_to_prediction_out(match, artifact, db) for match in selected]
+    features_by_id = compute_features_bulk(db, sport, selected)
+    predictions = predict_batch(artifact, [features_by_id[match.id] for match in selected])
+    return [_to_prediction_out(match, prediction) for match, prediction in zip(selected, predictions)]
 
 
 @router.get("/{game_id}", response_model=PredictionOut)
 def get_prediction(game_id: int, db: Session = Depends(get_db), artifact_dir=Depends(get_artifact_dir)):
     match, artifact = _get_match_and_artifact(game_id, db, artifact_dir)
-    return _to_prediction_out(match, artifact, db)
+    features = compute_features(db, match)
+    prediction = predict_match(artifact, features)
+    return _to_prediction_out(match, prediction)
 
 
 @router.get("/{game_id}/explain", response_model=ExplanationOut)
