@@ -103,7 +103,7 @@ def _h2h_home_win_rate(db: Session, sport: str, home_id: int, away_id: int, befo
 def compute_features(db: Session, match: Match) -> MatchFeatures:
     """Single-match path: a handful of targeted, indexed-by-team queries.
     Cheap for one match. For many matches at once (the upcoming-predictions
-    list, the AI analyst's match context, training), use
+    list, the AI copilot's tool calls, training), use
     compute_features_bulk or build_training_dataframe instead — those load
     a sport's full history ONCE and compute every match from an in-memory
     index, rather than paying these few queries again per match.
@@ -177,7 +177,7 @@ def _load_final_matches(db: Session, sport: str) -> list[Match]:
 
 def compute_features_bulk(db: Session, sport: str, target_matches: list[Match]) -> dict[int, MatchFeatures]:
     """Computes features for many matches (e.g. the upcoming-predictions
-    list, or the AI analyst's match context) against one shared history load,
+    list, or the AI copilot's tool calls) against one shared history load,
     instead of ~5 DB round trips per match. Returns a dict keyed by match.id.
     Worth it once there are more than a handful of target matches; for a
     single match, compute_features()'s targeted queries are cheaper.
